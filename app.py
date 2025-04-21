@@ -20,8 +20,7 @@ app.secret_key = 'super_secret_key'
 app.permanent_session_lifetime = timedelta(minutes=10)  # ✅ 10분간 유효
 korea_tz = timezone("Asia/Seoul")
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, "qr_invite.db")
-CODE_FILE = os.path.join(BASE_DIR, "active_code.json")
+DB_PATH = os.path.join(BASE_DIR, "user.db")
 TOKEN_PATH = os.path.join(BASE_DIR, "token.json")
 CLIENT_SECRET_FILE = os.path.join(BASE_DIR, "client_secret.json")
 SCOPES = [
@@ -287,7 +286,7 @@ def invite():
             session["invited"] = True  # ✅ 세션 설정
             return redirect(url_for("calendar_view"))
         return render_template("invalid_code.html")
-    return render_template("invite.html")
+    return render_template("calendar.html")
 
 
 @app.route("/reservation", methods=["POST"])
