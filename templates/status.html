@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}예약 상태 확인 | TALK IF INVITED{% endblock %}
+
+{% block content %}
+<h2 class="mb-4 text-center">📋 예약 상태 확인</h2>
+
+{% if error %}
+  <div class="alert alert-danger fs-5">
+    🚫 {{ error }}
+  </div>
+{% else %}
+<div class="alert coffee-alert fs-5">
+  <strong>{{ name }}</strong>님의 예약 상태입니다.<br><br>
+  {{ status_msg | safe }}
+</div>
+
+{% endif %}
+
+<a href="/" class="btn btn-secondary mt-4">홈으로 돌아가기</a>
+{% endblock %}

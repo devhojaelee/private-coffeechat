@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}예약 신청 완료 | TALK IF INVITED{% endblock %}
+
+{% block content %}
+<h2 class="mb-4 text-center">{{ name }}님의 예약 신청이 완료되었습니다 ✅</h2>
+
+<p class="text-center mt-4">관리자의 승인을 기다려주세요.<br>아래 버튼을 눌러 예약 상태를 확인할 수 있어요.</p>
+
+<div class="text-center mt-4">
+  <form method="post" action="/status">
+    <input type="hidden" name="phone" value="{{ phone }}">
+    <button type="submit" class="btn btn-primary">예약 상태 확인</button>
+  </form>
+  
+  <a class="btn btn-outline-secondary mt-3" href="/">홈으로 돌아가기</a>
+</div>
+
+
+{% endblock %}

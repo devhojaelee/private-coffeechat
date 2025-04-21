@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}프라이빗 커피챗{% endblock %}
+
+{% block content %}
+<h2 class="text-center mb-3">☕ 프라이빗 커피챗</h2>
+<p class="text-center text-muted mb-4">
+  초대코드가 있다면 새로운 대화를 예약하고,<br>
+  이미 예약했다면 전화번호로 상태를 확인하세요.
+</p>
+
+<!-- 초대코드 입력 영역 -->
+<div class="card p-4 shadow-sm mb-4 border-0 coffee-card">
+  <h5 class="mb-3">🔑 초대코드로 대화 예약</h5>
+  {% if invite_error %}
+    <div class="alert alert-danger">{{ invite_error }}</div>
+  {% endif %}
+  <form method="post" action="/invite">
+    <div class="mb-3">
+      <input type="text" name="code" class="form-control" placeholder="초대코드를 입력하세요" required>
+    </div>
+    <button class="btn coffee-btn w-100">대화 예약하러 가기</button>
+  </form>
+</div>
+
+<!-- 예약 상태 확인 영역 -->
+<div class="card p-4 shadow-sm border-0 coffee-card">
+  <h5 class="mb-3">📱 예약 상태 확인</h5>
+  {% if status_error %}
+    <div class="alert alert-danger">{{ status_error }}</div>
+  {% endif %}
+  <form method="post" action="/status">
+    <div class="mb-3">
+      <input type="text" name="phone" class="form-control" placeholder="전화번호를 입력하세요" required>
+    </div>
+    <button class="btn btn-outline-secondary coffee-outline-btn w-100">예약 상태 확인</button>
+  </form>
+</div>
+{% endblock %}
+
+{% block script %}
+<style>
+  body {
+    background-color: #f3ede7;
+    font-family: 'Inter', sans-serif;
+    color: #5e4634;
+  }
+
+  .coffee-card {
+    background-color: #fffdfc;
+    border-radius: 1rem;
+    border: none;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+
+  .coffee-btn,
+.coffee-outline-btn {
+  background-color: #6b4c3b;
+  color: white;
+  border: 1px solid #6b4c3b;  /* ✅ 기본에도 border 지정 */
+  box-sizing: border-box;
+  transition: all 0.2s ease-in-out;
+}
+
+.coffee-btn:hover,
+.coffee-outline-btn:hover {
+  background-color: #f3ede7;
+  color: #6b4c3b;
+  border: 1px solid #6b4c3b;
+}
+
+
+  .form-control:focus {
+    border-color: #c5a990;
+    box-shadow: 0 0 0 0.2rem rgba(197, 169, 144, 0.25);
+  }
+</style>
+{% endblock %}
+
+

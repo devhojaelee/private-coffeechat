@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+
+{% block title %}예약 신청 목록 | TALK IF INVITED{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2>📋 예약 신청 목록</h2>
+ <form method="post" action="{{ url_for('admin_logout') }}" onsubmit="return confirmLogout();">
+  <button type="submit" class="btn btn-outline-danger btn-sm">🚪 로그아웃</button>
+</form>
+</div>
+
+{% for r in reservations %}
+<div class="reservation-card">
+  <!-- 기본 정보 테이블 (PC용) -->
+  <table class="table table-bordered text-center mb-2 align-middle d-none d-sm-table">
+    <thead class="table-dark">
+      <tr>
+        <th>ID</th><th>초대코드</th><th>이름</th><th>이메일</th><th>전화번호</th><th>상태</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>{{ r[0] }}</td>
+        <td>{{ r[1] }}</td>
+        <td class="text-nowrap">{{ r[2] }}</td>
+        <td class="text-nowrap">{{ r[3] }}</td>
+        <td class="text-nowrap">{{ r[4] }}</td>
+        <td class="text-nowrap">
+          {% if r[9] == "승인됨" %}
+            <span class="badge bg-success">승인됨<br><small>{{ r[8] }}</small></span>
+          {% elif r[9] == "거절됨" %}
+            <span class="badge bg-danger">거절됨</span>
+          {% else %}
+            <span class="badge bg-secondary">대기 중</span>
+          {% endif %}
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- 모바일용 기본 정보 분할 테이블 -->
+  <table class="table table-bordered text-center mb-2 align-middle d-sm-none">
+    <thead class="table-dark">
+      <tr><th>ID</th><th>초대코드</th><th>이름</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>{{ r[0] }}</td>
+        <td>{{ r[1] }}</td>
+        <td class="text-nowrap">{{ r[2] }}</td>
+      </tr>
+    </tbody>
+  </table>
+  <table class="table table-bordered text-center mb-2 align-middle d-sm-none">
+    <thead class="table-dark">
+      <tr><th>이메일</th><th>전화번호</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="text-nowrap">{{ r[3] }}</td>
+        <td class="text-nowrap">{{ r[4] }}</td>
+      </tr>
+    </tbody>
+  </table>
+  <table class="table table-bordered text-center mb-2 align-middle d-sm-none">
+    <thead class="table-dark">
+      <tr><th>상태</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="text-nowrap">
+          {% if r[9] == "승인됨" %}
+            <span class="badge bg-success">승인됨<br><small>{{ r[8] }}</small></span>
+          {% elif r[9] == "거절됨" %}
+            <span class="badge bg-danger">거절됨</span>
+          {% else %}
+            <span class="badge bg-secondary">대기 중</span>
+          {% endif %}
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- 예약 시간 테이블 -->
+  <table class="table table-sm table-bordered mb-2">
+    <thead class="table-light">
+      <tr><th>예약 시간</th></tr>
+    </thead>
+    <tbody>
+      {% for slot in r[6] %}
+      <tr><td class="text-nowrap">{{ loop.index }}️⃣ {{ slot }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% set start_time = r[6]|sort|first %}
+  {% set end_time = r[6]|sort|last %}
+  {% set start_hour = start_time[11:13]|int %}
+  {% set start_minute = start_time[14:16]|int %}
+  {% set end_hour = end_time[11:13]|int %}
+  {% set end_minute = end_time[14:16]|int + 30 %}
+  {% if end_minute >= 60 %}
+    {% set end_hour = end_hour + 1 %}
+    {% set end_minute = end_minute - 60 %}
+  {% endif %}
+  {% set slot_count = r[6]|length %}
+  {% set total_minutes = slot_count * 30 %}
+  {% set total_hours = total_minutes // 60 %}
+  {% set remain_minutes = total_minutes % 60 %}
+
+  <p class="text-end text-muted small">
+    {{ '%02d:%02d' % (start_hour, start_minute) }} ~ {{ '%02d:%02d' % (end_hour, end_minute) }} (총
+    {% if total_hours > 0 %}{{ total_hours }}시간 {% endif %}
+    {% if remain_minutes > 0 or total_hours == 0 %}{{ remain_minutes }}분{% endif %})
+  </p>
+
+  <!-- 대화하고 싶은 주제 테이블 -->
+  <table class="table table-sm table-bordered mb-3">
+    <thead class="table-light">
+      <tr><th>대화하고 싶은 주제</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>{{ r[5] }}</td></tr>
+    </tbody>
+  </table>
+
+  <!-- 관리 및 삭제 버튼 -->
+  <div class="action-buttons">
+    <form method="post" onsubmit="return confirm('정말로 이 예약을 승인하시겠습니까?');">
+      <input type="hidden" name="approve_id" value="{{ r[0] }}">
+      <button type="submit" class="btn btn-sm btn-success">승인</button>
+    </form>
+    <form method="post" onsubmit="return confirm('정말로 이 예약을 거절하시겠습니까?');">
+      <input type="hidden" name="reject_id" value="{{ r[0] }}">
+      <button type="submit" class="btn btn-sm btn-warning">거절</button>
+    </form>
+    <form method="post" onsubmit="return confirm('정말로 이 예약을 삭제하시겠습니까? 삭제하면 되돌릴 수 없습니다.');">
+      <input type="hidden" name="remove_id" value="{{ r[0] }}">
+      <button type="submit" class="btn btn-sm btn-danger">삭제</button>
+    </form>
+  </div>
+</div>
+{% endfor %}
+
+<a href="/" class="btn btn-secondary mt-4">홈으로</a>
+{% endblock %}
+
+{% block script %}
+<style>
+  .reservation-card {
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    background-color: #fff;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+  }
+  .action-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: center;
+  }
+  @media (max-width: 576px) {
+    .table th, .table td {
+      font-size: 0.85rem;
+      padding: 0.3rem;
+    }
+    .reservation-card {
+      padding: 1rem;
+    }
+  }
+</style>
+
+<script>
+function confirmLogout() {
+    return confirm("정말 로그아웃하시겠습니까?");
+  }
+  // ✅ 10분 후 자동 로그아웃 (index로 이동)
+  setTimeout(function () {
+    alert("세션이 만료되어 로그아웃됩니다.");
+    window.location.href = "{{ url_for('home') }}";
+  }, 600000); // 600,000ms = 10분
+</script>
+{% endblock %}
