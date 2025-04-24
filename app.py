@@ -5,17 +5,20 @@ from google_auth_oauthlib.flow import Flow
 from datetime import datetime, timedelta
 from dateutil import parser
 from pytz import timezone
+from prometheus_flask_exporter import PrometheusMetrics  # ✅ 추가
+from dotenv import load_dotenv
 import pytz
 import os
 import sqlite3
 import json
-
+import sys
 from calendar_utils import create_meet_event
 from email_utils import send_meet_email
 
 # 임시로 http 허용
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 app = Flask(__name__)
+metrics = PrometheusMetrics(app)  # ✅ 성능 측정 활성화
 app.secret_key = 'super_secret_key'
 app.permanent_session_lifetime = timedelta(minutes=10)  # ✅ 10분간 유효
 korea_tz = timezone("Asia/Seoul")
@@ -27,6 +30,19 @@ SCOPES = [
     "https://www.googleapis.com/auth/calendar.events",
     "https://www.googleapis.com/auth/calendar"
 ]
+
+# 환경변수 기본값 지정
+env_file = ".env.dev"
+if len(sys.argv) > 1:
+    env_file = sys.argv[1]
+
+print(f"📦 로딩 환경 파일: {env_file}")
+load_dotenv(dotenv_path=env_file)
+
+PORT = int(os.getenv("FLASK_PORT", 9999))
+DEBUG = os.getenv("FLASK_ENV") == "development"
+
+
 
 def get_active_code():
     with sqlite3.connect(DB_PATH) as conn:
@@ -453,4 +469,4 @@ def add_duration(value, minutes):
 if __name__ == "__main__":
     init_db()
     set_active_code("code2025")
-    app.run(debug=False, host="0.0.0.0", port=33333)
+    app.run(debug=DEBUG, host="0.0.0.0", port=PORT)

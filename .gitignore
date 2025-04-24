@@ -1,3 +1,7 @@
 client_secret.json
 qr_invite.db
+user.db
 token.json
+venv/
+.env*
+
