@@ -234,53 +234,57 @@ h2.fc-toolbar-title {
   fetch(`/api/available-slots?year=${year}&month=${month}&view=month`)
     .then(response => response.json())
     .then(data => {
-      // 💡 로딩 종료
-      document.getElementById('loadingSpinner').style.display = 'none';
+  document.getElementById('loadingSpinner').style.display = 'none';
 
-      allSlots.length = 0;
-      allSlots.push(...data);
-      const grouped = {};
-      for (const slot of data) {
-        const date = slot.start.split("T")[0];
-        if (!grouped[date]) grouped[date] = 0;
-        grouped[date]++;
-      }
+  const grouped = data;  // 이제 grouped는 이미 날짜별로 정리된 형태임
+  const isMobile = window.innerWidth <= 576;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
-      const isMobile = window.innerWidth <= 576;
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+  const summarized = Object.keys(grouped).map(date => {
+    const dayDate = new Date(date);
+    const slotList = Array.isArray(grouped[date]) ? grouped[date] : [];
 
-      const summarized = Object.keys(grouped).map(date => {
-        const count = grouped[date];
-        const dayDate = new Date(date);
-if (dayDate < today) {
-  icon = "⚫️";
-  label = "예약 불가";
-} else {
-  if (count < 6) {
-    icon = "🔴";
-    label = "거의 없음";
-  } else if (count < 16) {
-    icon = "🟡";
-    label = "일부 가능";
-  } else {
-    icon = "⚫️";
-    label = "예약 불가";
-  }
-}
+    const filtered = slotList.filter(slot => {
+      const hour = new Date(slot.start).getHours();
+      return hour >= 10 && hour < 18;
+    });
 
+    const count = filtered.length;
 
-        return {
-          title: isMobile ? `${icon}` : `${icon} ${label}`,
-          start: date,
-          allDay: true,
-          display: 'block',
-          extendedProps: { tooltip: label, date: date }
-        };
-      });
+    let icon = "🟢", label = "예약 가능";
+    if (dayDate < today) {
+      icon = "⚫️";
+      label = "지난 날짜";
+    } else if (count === 0) {
+      icon = "⚫️";
+      label = "예약 불가";
+    } else if (count <= 2) {
+      icon = "🔴";
+      label = "거의 없음";
+    } else if (count <= 6) {
+      icon = "🟡";
+      label = "일부 가능";
+    } else if (count > 16) {
+      icon = "⚫️";
+      label = "예약 불가";
+    }
 
-      successCallback(summarized);
-    })
+    // 전체 슬롯도 저장 (모달용)
+    for (const s of slotList) allSlots.push(s);
+
+    return {
+      title: isMobile ? `${icon}` : `${icon} ${label}`,
+      start: date,
+      allDay: true,
+      display: 'block',
+      extendedProps: { tooltip: label, date: date }
+    };
+  });
+
+  successCallback(summarized);
+})
+
     .catch(err => {
       console.error(err);
       failureCallback(err);

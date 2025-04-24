@@ -14,6 +14,7 @@ import json
 import sys
 from calendar_utils import create_meet_event
 from email_utils import send_meet_email
+from collections import defaultdict
 
 # 임시로 http 허용
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
@@ -66,6 +67,8 @@ def set_active_code(new_code):
             c.execute("INSERT INTO invite_codes (code, is_active, created_at) VALUES (?, 1, ?)", (new_code, datetime.now()))
         conn.commit()
 
+def is_within_allowed_time(dt):
+    return 10 <= dt.hour < 18
 
 def get_available_time_slots(token_path=TOKEN_PATH, year=None, month=None, view="month"):
     creds = Credentials.from_authorized_user_file(token_path)
@@ -95,24 +98,40 @@ def get_available_time_slots(token_path=TOKEN_PATH, year=None, month=None, view=
     busy_times = service.freebusy().query(body=body).execute()
     busy_periods = busy_times['calendars']['primary']['busy']
 
-    slots = []
+    grouped = defaultdict(list)
     current = start_dt
+
+    # ✅ 먼저 슬롯 계산
     while current < end_dt:
+        date_str = current.strftime("%Y-%m-%d")
+        grouped[date_str]  # ✅ 날짜 키 생성 (중복 있어도 문제 없음)
+
         slot_end = current + timedelta(minutes=30)
-        overlap = any(
-            current < parser.isoparse(b['end']).astimezone(tz) and
-            slot_end > parser.isoparse(b['start']).astimezone(tz)
-            for b in busy_periods
-        )
-        if not overlap:
-            slots.append({
-                "start": current.strftime("%Y-%m-%dT%H:%M:%S"),
-                "end": slot_end.strftime("%Y-%m-%dT%H:%M:%S"),
-                "title": "Available"
-            })
+
+        if is_within_allowed_time(current):
+            overlap = any(
+                current < parser.isoparse(b["end"]).astimezone(tz) and
+                slot_end > parser.isoparse(b["start"]).astimezone(tz)
+                for b in busy_periods
+            )
+            if not overlap:
+                grouped[date_str].append({
+                    "start": current.strftime("%Y-%m-%dT%H:%M:%S"),
+                    "end": slot_end.strftime("%Y-%m-%dT%H:%M:%S"),
+                    "title": "Available"
+                })
+
         current = slot_end
 
-    return slots
+    # ✅ 여기서 하루 단위로 key가 누락된 날짜 채우기
+    date_cursor = start_dt
+    while date_cursor < end_dt:
+        date_str = date_cursor.strftime("%Y-%m-%d")
+        grouped[date_str]  # defaultdict이므로 자동으로 [] 채워짐
+        date_cursor += timedelta(days=1)
+
+    # ✅ JSON 응답으로 넘기려면 dict로 변환 후
+    return jsonify(dict(grouped))
 
 
 def init_db():
@@ -180,7 +199,7 @@ def available_slots():
 
     try:
         slots = get_available_time_slots(year=year, month=month, view=view)
-        return jsonify(slots)
+        return slots
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
