@@ -36,8 +36,9 @@ env_file = ".env.dev"
 if len(sys.argv) > 1:
     env_file = sys.argv[1]
 
-print(f"📦 로딩 환경 파일: {env_file}")
+env_file = os.getenv("ENV_FILE", ".env.dev")
 load_dotenv(dotenv_path=env_file)
+
 
 PORT = int(os.getenv("FLASK_PORT", 9999))
 DEBUG = os.getenv("FLASK_ENV") == "development"
