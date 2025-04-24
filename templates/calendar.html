@@ -252,16 +252,23 @@ h2.fc-toolbar-title {
 
       const summarized = Object.keys(grouped).map(date => {
         const count = grouped[date];
-        let icon = "🟢", label = "예약 가능";
-        if (count < 6) { icon = "🔴"; label = "거의 없음"; }
-        else if (count < 16) { icon = "🟡"; label = "일부 가능"; }
-        else if (count >= 16) { icon = "⚫️"; label = "예약 불가"; }
-
         const dayDate = new Date(date);
-        if (dayDate < today) {
-          icon = "⚫️";
-          label = "예약 불가";
-        }
+if (dayDate < today) {
+  icon = "⚫️";
+  label = "예약 불가";
+} else {
+  if (count < 6) {
+    icon = "🔴";
+    label = "거의 없음";
+  } else if (count < 16) {
+    icon = "🟡";
+    label = "일부 가능";
+  } else {
+    icon = "⚫️";
+    label = "예약 불가";
+  }
+}
+
 
         return {
           title: isMobile ? `${icon}` : `${icon} ${label}`,
