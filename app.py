@@ -32,19 +32,25 @@ SCOPES = [
     "https://www.googleapis.com/auth/calendar"
 ]
 
-# 환경변수 기본값 지정
-env_file = ".env.dev"
-if len(sys.argv) > 1:
-    env_file = sys.argv[1]
+# FLASK_ENV에 따라 알맞은 .env 파일 자동 선택
+flask_env = os.getenv("FLASK_ENV", "development")
 
-env_file = os.getenv("ENV_FILE", ".env.dev")
+if flask_env == "production":
+    env_file = ".env.prod"
+else:
+    env_file = ".env.dev"
+
+print(f"✅ Loading environment from: {env_file}")  # 확인용 로그
+
 load_dotenv(dotenv_path=env_file)
+# 이후에 google_auth import
+from google_auth import build_flow
 
 
 PORT = int(os.getenv("FLASK_PORT", 9999))
 DEBUG = os.getenv("FLASK_ENV") == "development"
 
-
+REDIRECT_URI = os.getenv("REDIRECT_URI", "http://hojaelee.com:9999/oauth2callback")
 
 def get_active_code():
     with sqlite3.connect(DB_PATH) as conn:
@@ -70,8 +76,46 @@ def set_active_code(new_code):
 def is_within_allowed_time(dt):
     return 10 <= dt.hour < 18
 
+def refresh_access_token(creds):
+    import requests
+
+    # ✅ client_id와 client_secret을 직접 client_secret.json 파일에서 읽어온다
+    with open(CLIENT_SECRET_FILE, 'r') as f:
+        client_config = json.load(f)
+    
+    client_id = client_config['web']['client_id']
+    client_secret = client_config['web']['client_secret']
+
+    refresh_token = creds.refresh_token
+
+    if not refresh_token:
+        raise Exception("No refresh token available.")
+
+    token_url = 'https://oauth2.googleapis.com/token'
+    payload = {
+        'client_id': client_id,
+        'client_secret': client_secret,
+        'refresh_token': refresh_token,
+        'grant_type': 'refresh_token',
+    }
+    res = requests.post(token_url, data=payload)
+    if res.status_code == 200:
+        token_data = res.json()
+        creds.token = token_data['access_token']
+        creds.expiry = datetime.now() + timedelta(seconds=int(token_data['expires_in']))
+        # ✅ 새로 갱신한 토큰 저장
+        with open(TOKEN_PATH, "w") as token_file:
+            token_file.write(creds.to_json())
+        return creds
+    else:
+        raise Exception("Access Token Refresh Failed: " + res.text)
+
+
 def get_available_time_slots(token_path=TOKEN_PATH, year=None, month=None, view="month"):
     creds = Credentials.from_authorized_user_file(token_path)
+     # ✅ 토큰이 만료됐으면 새로 갱신
+    if creds.expired and creds.refresh_token:
+        creds = refresh_access_token(creds)
     service = build("calendar", "v3", credentials=creds)
 
     tz = pytz.timezone('Asia/Seoul')
@@ -173,7 +217,7 @@ def auth_google():
     flow = Flow.from_client_secrets_file(
         CLIENT_SECRET_FILE,
         scopes=SCOPES,
-        redirect_uri="http://localhost:33333/oauth2callback"
+        redirect_uri = REDIRECT_URI
     )
     auth_url, _ = flow.authorization_url(prompt='consent', access_type='offline', include_granted_scopes='true')
     return redirect(auth_url)
@@ -183,7 +227,7 @@ def oauth2callback():
     flow = Flow.from_client_secrets_file(
         CLIENT_SECRET_FILE,
         scopes=SCOPES,
-        redirect_uri="http://localhost:33333/oauth2callback"
+        redirect_uri = REDIRECT_URI
     )
     flow.fetch_token(authorization_response=request.url)
     creds = flow.credentials
