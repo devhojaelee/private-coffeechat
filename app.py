@@ -215,12 +215,18 @@ def home():
 @app.route("/auth/google")
 def auth_google():
     flow = Flow.from_client_secrets_file(
-        CLIENT_SECRET_FILE,
+        CLIENT_SECRETS_FILE,
         scopes=SCOPES,
         redirect_uri = REDIRECT_URI
     )
-    auth_url, _ = flow.authorization_url(prompt='consent', access_type='offline', include_granted_scopes='true')
+    auth_url, _ = flow.authorization_url(
+        prompt='consent',
+        access_type='offline',
+        include_granted_scopes='true',
+        redirect_uri=REDIRECT_URI  # ✅ 추가!!
+    )
     return redirect(auth_url)
+
 
 @app.route("/oauth2callback")
 def oauth2callback():
