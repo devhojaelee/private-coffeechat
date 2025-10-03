@@ -346,10 +346,11 @@ def book_with_link(token):
     if used:
         return render_template("error.html", message="이미 사용된 링크입니다."), 403
 
-    now = datetime.now()
+    # 한국 시간 사용
+    now = datetime.now(korea_tz)
 
     # 미접속 시 7일 제한 확인
-    created_dt = datetime.fromisoformat(created_at)
+    created_dt = korea_tz.localize(datetime.fromisoformat(created_at)) if created_at else now
     if not first_accessed_at and (now - created_dt).days > 7:
         return render_template("error.html", message="링크가 만료되었습니다. (7일 경과)"), 403
 
@@ -360,13 +361,13 @@ def book_with_link(token):
             c = conn.cursor()
             c.execute(
                 "UPDATE booking_links SET first_accessed_at = ?, expires_at = ? WHERE id = ?",
-                (now, expires_dt, link_id)
+                (now.replace(tzinfo=None), expires_dt.replace(tzinfo=None), link_id)
             )
             conn.commit()
     else:
         # 이미 접속한 적 있음 - 만료 확인
         if expires_at:
-            expires_dt = datetime.fromisoformat(expires_at)
+            expires_dt = korea_tz.localize(datetime.fromisoformat(expires_at))
             if now > expires_dt:
                 return render_template("error.html", message="링크가 만료되었습니다. (30분 경과)"), 403
         else:
