@@ -2,6 +2,30 @@
 
 {% block title %}{{ link_name }} - 커피챗 예약{% endblock %}
 
+{% block progress %}
+<div class="progress-stepper" data-current-step="1" role="navigation" aria-label="예약 진행 단계">
+  <div class="progress-step active">
+    <div class="step-circle" aria-current="step">1</div>
+    <div class="step-label">정보입력</div>
+  </div>
+  <span class="step-arrow" aria-hidden="true">→</span>
+  <div class="progress-step">
+    <div class="step-circle">2</div>
+    <div class="step-label">이메일인증</div>
+  </div>
+  <span class="step-arrow" aria-hidden="true">→</span>
+  <div class="progress-step">
+    <div class="step-circle">3</div>
+    <div class="step-label">시간선택</div>
+  </div>
+  <span class="step-arrow" aria-hidden="true">→</span>
+  <div class="progress-step">
+    <div class="step-circle">4</div>
+    <div class="step-label">완료</div>
+  </div>
+</div>
+{% endblock %}
+
 {% block content %}
 <div class="card p-5 shadow-sm border-0 coffee-card">
   <h2 class="mb-4 text-center">☕ {{ link_name }}</h2>
