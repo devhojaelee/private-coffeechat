@@ -558,33 +558,59 @@ def book_form(token):
                                    purpose=purpose,
                                    error=" / ".join(errors))
 
-        # cancel_token 생성
-        import uuid
-        cancel_token = str(uuid.uuid4())
+        # 변경 모드 확인
+        change_mode = session.get("change_mode")
 
-        # bookings 테이블에 저장 & 링크 사용 완료 마킹
-        with sqlite3.connect(DB_PATH) as conn:
-            c = conn.cursor()
-            c.execute(
-                """
-                INSERT INTO bookings
-                (booking_link_id, name, email, phone, purpose, selected_slot, status, cancel_token, email_verified, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, 1, ?)
-                """,
-                (link_id, name, verified_booking["email"],
-                 phone, purpose,
-                 verified_booking["selected_slot"], cancel_token, datetime.now())
-            )
+        if change_mode:
+            # 예약 변경 플로우 - 기존 예약 UPDATE
+            booking_id = change_mode["booking_id"]
 
-            # 🆕 링크 사용 완료 표시
-            c.execute(
-                "UPDATE booking_links SET used = 1 WHERE id = ?",
-                (link_id,)
-            )
-            conn.commit()
+            # bookings 테이블 업데이트
+            with sqlite3.connect(DB_PATH) as conn:
+                c = conn.cursor()
+                c.execute(
+                    """
+                    UPDATE bookings
+                    SET name = ?, phone = ?, purpose = ?, selected_slot = ?, status = 'pending'
+                    WHERE id = ?
+                    """,
+                    (name, phone, purpose, verified_booking["selected_slot"], booking_id)
+                )
+                conn.commit()
 
-        # 세션 정리
-        session.pop("verified_booking", None)
+            # 세션 정리
+            session.pop("change_mode", None)
+            session.pop("verified_booking", None)
+
+        else:
+            # 일반 예약 플로우 - 신규 INSERT
+            # cancel_token 생성
+            import uuid
+            cancel_token = str(uuid.uuid4())
+
+            # bookings 테이블에 저장 & 링크 사용 완료 마킹
+            with sqlite3.connect(DB_PATH) as conn:
+                c = conn.cursor()
+                c.execute(
+                    """
+                    INSERT INTO bookings
+                    (booking_link_id, name, email, phone, purpose, selected_slot, status, cancel_token, email_verified, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, 1, ?)
+                    """,
+                    (link_id, name, verified_booking["email"],
+                     phone, purpose,
+                     verified_booking["selected_slot"], cancel_token, datetime.now())
+                )
+
+                # 🆕 링크 사용 완료 표시
+                c.execute(
+                    "UPDATE booking_links SET used = 1 WHERE id = ?",
+                    (link_id,)
+                )
+                conn.commit()
+
+            # 세션 정리
+            session.pop("verified_booking", None)
 
         # 성공 페이지로 이동
         return render_template("booking_success.html",
