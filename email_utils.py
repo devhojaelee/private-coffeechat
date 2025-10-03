@@ -85,6 +85,40 @@ def send_booking_link_email(to_email, link_name, booking_url):
         server.send_message(msg)
 
 
+def send_admin_notification(admin_email, name, email, phone, purpose, selected_slot, booking_id, host_url):
+    """관리자에게 예약 승인 요청 이메일 발송"""
+    msg = EmailMessage()
+    msg["Subject"] = f"☕ 새로운 커피챗 신청 - {name}님"
+    msg["From"] = os.getenv("NAVER_ADDRESS")
+    msg["To"] = admin_email
+
+    approve_link = f"{host_url}admin#booking-{booking_id}"
+
+    msg.set_content(f"""안녕하세요!
+
+새로운 커피챗 신청이 도착했습니다.
+
+📋 신청 정보:
+- 이름: {name}
+- 이메일: {email}
+- 전화번호: {phone}
+- 희망 시간: {selected_slot}
+- 용무: {purpose}
+
+아래 링크를 클릭하여 승인해주세요:
+🔗 {approve_link}
+
+감사합니다.
+""")
+
+    with smtplib.SMTP_SSL("smtp.naver.com", 465) as server:
+        server.login(
+            os.getenv("NAVER_ADDRESS"),
+            os.getenv("NAVER_APP_PASSWORD")
+        )
+        server.send_message(msg)
+
+
 def send_meet_email(to_email, name, slot_time, meet_link, manage_url=None, admin_notice=False):
     msg = EmailMessage()
 
@@ -123,6 +157,35 @@ def send_meet_email(to_email, name, slot_time, meet_link, manage_url=None, admin
     msg["From"] = os.getenv("NAVER_ADDRESS")
     msg["To"] = to_email
     msg["Cc"] = os.getenv("NAVER_CC")
+
+    with smtplib.SMTP_SSL("smtp.naver.com", 465) as server:
+        server.login(
+            os.getenv("NAVER_ADDRESS"),
+            os.getenv("NAVER_APP_PASSWORD")
+        )
+        server.send_message(msg)
+
+def send_cancellation_email(to_email, name, slot_time, cancel_reason):
+    """예약 취소 이메일 발송"""
+    msg = EmailMessage()
+    msg["Subject"] = f"⚠️ 커피챗 예약 취소 안내 - {name}님"
+    msg["From"] = os.getenv("NAVER_ADDRESS")
+    msg["To"] = to_email
+    msg["Cc"] = os.getenv("NAVER_CC")
+
+    msg.set_content(f"""안녕하세요 {name}님,
+
+죄송하게도 예약이 취소되었습니다.
+
+🕒 예약 시간: {slot_time}
+
+📝 취소 사유:
+{cancel_reason}
+
+다시 예약을 원하시면 새로운 예약 링크를 통해 신청해주시기 바랍니다.
+
+감사합니다.
+""")
 
     with smtplib.SMTP_SSL("smtp.naver.com", 465) as server:
         server.login(

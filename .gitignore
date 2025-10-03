@@ -1,24 +1,38 @@
+# 민감한 설정 파일
+.env
+.env.*
+*.env
 client_secret.json
-qr_invite.db
-user.db
 token.json
-venv/
-.env*
+credentials.json
+
+# Linear API 키 포함 파일
+.claude/prompts.md
+scripts/linear_tmux.sh
+
+# 데이터베이스
+user.db
+*.db
+*.sqlite
 
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
-
-# Docker
-.DS_Store
+.Python
+venv/
+ENV/
 
 # IDE
 .vscode/
 .idea/
+*.swp
+*.swo
 
-# Backup files
-*.backup
-backup/
+# OS
+.DS_Store
+Thumbs.db
 
+# 로그
+*.log
