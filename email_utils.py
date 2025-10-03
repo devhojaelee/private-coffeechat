@@ -100,6 +100,7 @@ def send_meet_email(to_email, name, slot_time, meet_link, manage_url=None, admin
     else:
         msg["Subject"] = f"{name}님과의 Google Meet 미팅 안내"
 
+        # 기본 메시지 구성
         email_body = f"""안녕하세요 {name}님,
 
 요청하신 미팅이 다음 시간에 승인되었습니다:
@@ -108,6 +109,7 @@ def send_meet_email(to_email, name, slot_time, meet_link, manage_url=None, admin
 🔗 Google Meet 링크: {meet_link}
 """
 
+        # manage_url이 있으면 예약 관리 링크 추가
         if manage_url:
             email_body += f"""
 📝 예약 관리:

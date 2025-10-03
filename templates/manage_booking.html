@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+
+{% block title %}예약 관리{% endblock %}
+
+{% block content %}
+<div class="card p-5 shadow-sm border-0 coffee-card">
+  <div class="text-center mb-4">
+    <h2>☕ 예약 관리</h2>
+  </div>
+
+  <div class="booking-info mb-4">
+    <h5 class="mb-3">예약 정보</h5>
+    <div class="info-row">
+      <span class="label">이름:</span>
+      <span class="value">{{ booking.name }}</span>
+    </div>
+    <div class="info-row">
+      <span class="label">이메일:</span>
+      <span class="value">{{ booking.email }}</span>
+    </div>
+    <div class="info-row">
+      <span class="label">전화번호:</span>
+      <span class="value">{{ booking.phone }}</span>
+    </div>
+    <div class="info-row">
+      <span class="label">주제:</span>
+      <span class="value">{{ booking.purpose }}</span>
+    </div>
+    <div class="info-row">
+      <span class="label">예약 시간:</span>
+      <span class="value">{{ booking.selected_slot }}</span>
+    </div>
+    <div class="info-row">
+      <span class="label">상태:</span>
+      <span class="value">
+        {% if booking.status == 'confirmed' %}
+          <span class="badge bg-success">승인됨</span>
+        {% elif booking.status == 'cancelled' %}
+          <span class="badge bg-secondary">취소됨</span>
+        {% else %}
+          <span class="badge bg-warning text-dark">대기 중</span>
+        {% endif %}
+      </span>
+    </div>
+
+    {% if booking.meet_link and booking.status == 'confirmed' %}
+    <div class="info-row">
+      <span class="label">Google Meet:</span>
+      <span class="value">
+        <a href="{{ booking.meet_link }}" target="_blank" class="btn btn-sm btn-primary">미팅 참가</a>
+      </span>
+    </div>
+    {% endif %}
+
+    {% if booking.confirmed_at %}
+    <div class="info-row">
+      <span class="label">승인 일시:</span>
+      <span class="value">{{ booking.confirmed_at }}</span>
+    </div>
+    {% endif %}
+  </div>
+
+  {% if booking.status == 'confirmed' %}
+  <div class="alert alert-warning mb-3">
+    <strong>⚠️ 주의사항</strong><br>
+    예약을 취소하면 복구할 수 없습니다.<br>
+    변경을 원하시면 '예약 변경' 버튼을 이용해주세요.
+  </div>
+
+  <div class="action-buttons">
+    <a href="/manage/{{ booking.cancel_token }}/change" class="btn coffee-btn-outline w-100 mb-2">
+      🔄 예약 변경
+    </a>
+
+    <form method="POST" action="/manage/{{ booking.cancel_token }}/cancel" onsubmit="return confirm('정말 예약을 취소하시겠습니까? 이 작업은 되돌릴 수 없습니다.');">
+      <button type="submit" class="btn btn-danger w-100">❌ 예약 취소</button>
+    </form>
+  </div>
+  {% elif booking.status == 'cancelled' %}
+  <div class="alert alert-secondary text-center">
+    이 예약은 취소되었습니다.
+  </div>
+  {% else %}
+  <div class="alert alert-info text-center">
+    관리자 승인 대기 중입니다.<br>
+    승인 후 이메일로 안내드립니다.
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block script %}
+<style>
+  body {
+    background-color: #f3ede7;
+    font-family: 'Inter', sans-serif;
+    color: #5e4634;
+  }
+
+  .coffee-card {
+    background-color: #fffdfc;
+    border-radius: 1rem;
+    max-width: 600px;
+    margin: 2rem auto;
+  }
+
+  .booking-info {
+    background-color: #f9f6f2;
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+  }
+
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #e8dfd5;
+  }
+
+  .info-row:last-child {
+    border-bottom: none;
+  }
+
+  .info-row .label {
+    font-weight: 600;
+    color: #6b4c3b;
+  }
+
+  .info-row .value {
+    text-align: right;
+    color: #5e4634;
+  }
+
+  .coffee-btn-outline {
+    background-color: white;
+    color: #6b4c3b;
+    border: 2px solid #6b4c3b;
+    transition: all 0.2s ease-in-out;
+  }
+
+  .coffee-btn-outline:hover {
+    background-color: #6b4c3b;
+    color: white;
+  }
+
+  .action-buttons {
+    margin-top: 1.5rem;
+  }
+
+  .alert-warning {
+    background-color: #fff3cd;
+    border-color: #ffc107;
+    color: #856404;
+  }
+
+  .alert-info {
+    background-color: #e8f4f8;
+    border-color: #b3d9e6;
+    color: #31708f;
+  }
+
+  .alert-secondary {
+    background-color: #e2e3e5;
+    border-color: #d6d8db;
+    color: #383d41;
+  }
+</style>
+{% endblock %}
