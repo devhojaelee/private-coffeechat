@@ -551,44 +551,262 @@ def book_form(token):
                                    purpose=purpose,
                                    error=" / ".join(errors))
 
-        # cancel_token 생성
-        import uuid
-        cancel_token = str(uuid.uuid4())
+        # 변경 모드 확인
+        change_mode = session.get("change_mode")
 
-        # bookings 테이블에 저장 & 링크 사용 완료 마킹
-        with sqlite3.connect(DB_PATH) as conn:
-            c = conn.cursor()
-            c.execute(
-                """
-                INSERT INTO bookings
-                (booking_link_id, name, email, phone, purpose, selected_slot, status, cancel_token, email_verified, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, 1, ?)
-                """,
-                (link_id, name, verified_booking["email"],
-                 phone, purpose,
-                 verified_booking["selected_slot"], cancel_token, datetime.now())
-            )
+        if change_mode:
+            # 예약 변경 플로우
+            booking_id = change_mode["booking_id"]
+            original_event_id = change_mode.get("original_event_id")
 
-            # 🆕 링크 사용 완료 표시
-            c.execute(
-                "UPDATE booking_links SET used = 1 WHERE id = ?",
-                (link_id,)
-            )
-            conn.commit()
+            # 기존 이벤트 삭제 (있는 경우)
+            if original_event_id:
+                try:
+                    delete_event(TOKEN_PATH, "yslhj93@gmail.com", original_event_id)
+                    print(f"✅ 기존 Google Calendar 이벤트 삭제 완료: {original_event_id}")
+                except Exception as e:
+                    print(f"⚠️ Google Calendar 이벤트 삭제 실패 (계속 진행): {e}")
 
-        # 세션 정리
-        session.pop("verified_booking", None)
+            # 새 이벤트 생성
+            try:
+                # 날짜 파싱
+                try:
+                    slot_dt = datetime.fromisoformat(verified_booking["selected_slot"])
+                except ValueError:
+                    slot_dt = datetime.strptime(verified_booking["selected_slot"], "%Y-%m-%d %H:%M")
 
-        # 성공 페이지로 이동
-        return render_template("booking_success.html",
-                               email=verified_booking["email"],
-                               selected_slot=verified_booking["selected_slot"])
+                meet_link, event_id = create_meet_event(
+                    TOKEN_PATH,
+                    "yslhj93@gmail.com",
+                    f"{name}님과의 미팅",
+                    slot_dt,
+                    30
+                )
+                print(f"✅ 새 Google Meet 이벤트 생성 성공: {meet_link}, event_id: {event_id}")
+
+                # bookings 테이블 업데이트
+                with sqlite3.connect(DB_PATH) as conn:
+                    c = conn.cursor()
+                    c.execute(
+                        """
+                        UPDATE bookings
+                        SET selected_slot = ?, meet_link = ?, event_id = ?,
+                            name = ?, phone = ?, purpose = ?, status = 'confirmed', confirmed_at = ?
+                        WHERE id = ?
+                        """,
+                        (verified_booking["selected_slot"], meet_link, event_id,
+                         name, phone, purpose, datetime.now(), booking_id)
+                    )
+                    conn.commit()
+
+                # 변경 확인 이메일 발송
+                manage_url = f"{request.host_url}manage/{change_mode['cancel_token']}"
+                send_meet_email(
+                    verified_booking["email"],
+                    name,
+                    verified_booking["selected_slot"],
+                    meet_link,
+                    manage_url=manage_url,
+                    admin_notice=False
+                )
+                print(f"✅ 변경 확인 이메일 발송 완료")
+
+            except Exception as e:
+                print(f"❌ 예약 변경 실패: {e}")
+                import traceback
+                traceback.print_exc()
+                return render_template("booking_form.html",
+                                       token=token,
+                                       link_name=link_name,
+                                       selected_slot=verified_booking["selected_slot"],
+                                       name=name,
+                                       phone=phone,
+                                       purpose=purpose,
+                                       error=f"예약 변경에 실패했습니다: {str(e)}")
+
+            # 세션 정리
+            session.pop("verified_booking", None)
+            session.pop("change_mode", None)
+
+            return render_template("booking_success.html",
+                                   email=verified_booking["email"],
+                                   selected_slot=verified_booking["selected_slot"],
+                                   is_change=True)
+
+        else:
+            # 일반 예약 플로우
+            import uuid
+            cancel_token = str(uuid.uuid4())
+
+            # bookings 테이블에 저장 & 링크 사용 완료 마킹
+            with sqlite3.connect(DB_PATH) as conn:
+                c = conn.cursor()
+                c.execute(
+                    """
+                    INSERT INTO bookings
+                    (booking_link_id, name, email, phone, purpose, selected_slot, status, cancel_token, email_verified, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, 1, ?)
+                    """,
+                    (link_id, name, verified_booking["email"],
+                     phone, purpose,
+                     verified_booking["selected_slot"], cancel_token, datetime.now())
+                )
+
+                # 🆕 링크 사용 완료 표시
+                c.execute(
+                    "UPDATE booking_links SET used = 1 WHERE id = ?",
+                    (link_id,)
+                )
+                conn.commit()
+
+            # 세션 정리
+            session.pop("verified_booking", None)
+
+            # 성공 페이지로 이동
+            return render_template("booking_success.html",
+                                   email=verified_booking["email"],
+                                   selected_slot=verified_booking["selected_slot"])
 
     # GET: 폼 표시
     return render_template("booking_form.html",
                            token=token,
                            link_name=link_name,
                            selected_slot=verified_booking["selected_slot"])
+
+
+@app.route("/manage/<cancel_token>")
+def manage_booking(cancel_token):
+    """예약 관리 페이지 - cancel_token으로 조회"""
+    with sqlite3.connect(DB_PATH) as conn:
+        c = conn.cursor()
+        c.execute(
+            """
+            SELECT id, name, email, phone, purpose, selected_slot, status, meet_link, confirmed_at
+            FROM bookings
+            WHERE cancel_token = ?
+            """,
+            (cancel_token,)
+        )
+        booking = c.fetchone()
+
+    if not booking:
+        return render_template("error.html", message="유효하지 않은 예약 관리 링크입니다."), 404
+
+    booking_data = {
+        "id": booking[0],
+        "name": booking[1],
+        "email": booking[2],
+        "phone": booking[3],
+        "purpose": booking[4],
+        "selected_slot": booking[5],
+        "status": booking[6],
+        "meet_link": booking[7],
+        "confirmed_at": booking[8],
+        "cancel_token": cancel_token
+    }
+
+    return render_template("manage_booking.html", booking=booking_data)
+
+
+@app.route("/manage/<cancel_token>/cancel", methods=["POST"])
+def cancel_booking(cancel_token):
+    """예약 취소 처리"""
+    with sqlite3.connect(DB_PATH) as conn:
+        c = conn.cursor()
+
+        # 예약 조회
+        c.execute(
+            """
+            SELECT id, event_id, status
+            FROM bookings
+            WHERE cancel_token = ?
+            """,
+            (cancel_token,)
+        )
+        booking = c.fetchone()
+
+        if not booking:
+            return render_template("error.html", message="유효하지 않은 예약 관리 링크입니다."), 404
+
+        booking_id, event_id, status = booking
+
+        # 이미 취소된 예약인지 확인
+        if status == 'cancelled':
+            return redirect(f"/manage/{cancel_token}")
+
+        # Google Calendar 이벤트 삭제 (event_id가 있는 경우)
+        if event_id:
+            try:
+                from calendar_utils import delete_event
+                delete_event(TOKEN_PATH, "yslhj93@gmail.com", event_id)
+                print(f"✅ Google Calendar 이벤트 삭제 완료: {event_id}")
+            except Exception as e:
+                print(f"⚠️ Google Calendar 이벤트 삭제 실패: {e}")
+                # 캘린더 삭제 실패해도 DB는 업데이트
+
+        # DB 상태 업데이트
+        c.execute(
+            """
+            UPDATE bookings
+            SET status = 'cancelled', cancelled_at = ?
+            WHERE id = ?
+            """,
+            (datetime.now(), booking_id)
+        )
+        conn.commit()
+
+    return redirect(f"/manage/{cancel_token}")
+
+
+@app.route("/manage/<cancel_token>/change")
+def change_booking(cancel_token):
+    """예약 변경 - 기존 예약을 pending으로 변경 후 캘린더로 리다이렉트"""
+    with sqlite3.connect(DB_PATH) as conn:
+        c = conn.cursor()
+
+        # 예약 조회
+        c.execute(
+            """
+            SELECT id, booking_link_id, email, event_id
+            FROM bookings
+            WHERE cancel_token = ?
+            """,
+            (cancel_token,)
+        )
+        booking = c.fetchone()
+
+        if not booking:
+            return render_template("error.html", message="유효하지 않은 예약 관리 링크입니다."), 404
+
+        booking_id, link_id, email, event_id = booking
+
+        # 링크 토큰 조회
+        c.execute("SELECT token FROM booking_links WHERE id = ?", (link_id,))
+        link_row = c.fetchone()
+
+        if not link_row:
+            return render_template("error.html", message="예약 링크를 찾을 수 없습니다."), 404
+
+        token = link_row[0]
+
+        # 세션에 변경 모드 플래그 설정 (이벤트 삭제는 나중에)
+        session["change_mode"] = {
+            "booking_id": booking_id,
+            "cancel_token": cancel_token,
+            "email": email,
+            "original_event_id": event_id  # 기존 이벤트 ID 저장
+        }
+
+        # verified_booking 세션 설정 (캘린더 접근 허용)
+        session["verified_booking"] = {
+            "booking_link_id": link_id,
+            "email": email,
+            "token": token,
+            "link_name": "예약 변경"
+        }
+
+        # 캘린더 페이지로 리다이렉트
+        return redirect(f"/book/{token}/calendar")
 
 
 @app.route("/auth/google")

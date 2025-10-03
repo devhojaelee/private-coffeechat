@@ -133,6 +133,14 @@ h2.fc-toolbar-title {
 
     <h3 class="text-center mb-3">📅 {{ link_name }}</h3>
 
+    <!-- 변경 모드 알림 -->
+    {% if session.get('change_mode') %}
+    <div class="alert alert-info text-center mb-3">
+      <strong>🔄 예약 변경 중</strong><br>
+      <small>새로운 시간을 선택하시면 기존 예약이 변경됩니다.</small>
+    </div>
+    {% endif %}
+
     <!-- 카운트다운 타이머 -->
     <div class="timer-alert" id="timer-alert">
       <strong>⏰ 남은 시간: <span id="countdown">계산 중...</span></strong>
