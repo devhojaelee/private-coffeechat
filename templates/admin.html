@@ -118,7 +118,7 @@
               {% elif booking[6] == 'confirmed' and booking[7] %}
                 <a href="{{ booking[7] }}" target="_blank" class="btn btn-primary btn-sm">Meet</a>
               {% endif %}
-              <button class="btn btn-info btn-sm" onclick="showBookingDetail({{ booking[0]|tojson }}, {{ booking|tojson }})">👁️</button>
+              <button class="btn btn-info btn-sm" onclick='showBookingDetail({{ booking[0] }}, {{ booking|tojson }})'>📋 상세</button>
             </td>
           </tr>
           {% endfor %}
@@ -248,7 +248,7 @@
                   <button type="submit" class="btn btn-warning btn-sm">✗</button>
                 </form>
               {% endif %}
-              <button class="btn btn-info btn-sm" onclick="showWaitlistDetail({{ w|tojson }})">👁️</button>
+              <button class="btn btn-info btn-sm" onclick='showWaitlistDetail({{ w|tojson }})'>📋 상세</button>
             </td>
           </tr>
           {% endfor %}
