@@ -60,11 +60,6 @@
       📝 대기명단 <span class="badge bg-warning">{{ waitlist|selectattr('5', 'equalto', 'pending')|list|length }}</span>
     </button>
   </li>
-  <li class="nav-item" role="presentation">
-    <button class="nav-link" id="old-reservations-tab" data-bs-toggle="tab" data-bs-target="#old-reservations" type="button">
-      📋 구 예약시스템
-    </button>
-  </li>
 </ul>
 
 <!-- 탭 컨텐츠 -->
@@ -75,14 +70,14 @@
     <div class="d-flex justify-content-between align-items-center mb-3">
       <div>
         <button class="btn btn-sm btn-outline-secondary" onclick="filterBookings('all')">전체</button>
-        <button class="btn btn-sm btn-outline-warning" onclick="filterBookings('pending')">대기 중</button>
-        <button class="btn btn-sm btn-outline-success" onclick="filterBookings('confirmed')">승인됨</button>
+        <button class="btn btn-sm btn-warning text-white" onclick="filterBookings('pending')">대기 중</button>
+        <button class="btn btn-sm btn-success" onclick="filterBookings('confirmed')">승인됨</button>
       </div>
     </div>
 
     {% if bookings %}
     <div class="table-responsive">
-      <table class="table table-hover table-sm">
+      <table class="table table-hover align-middle">
         <thead class="table-dark">
           <tr>
             <th style="width: 50px;">ID</th>
@@ -138,10 +133,10 @@
   <!-- 예약 링크 탭 -->
   <div class="tab-pane fade" id="links" role="tabpanel">
     <!-- 새 링크 생성 폼 -->
-    <div class="card mb-3">
+    <div class="card border-0 shadow-sm mb-4">
       <div class="card-body">
-        <h5 class="card-title">➕ 새 예약 링크 생성</h5>
-        <form method="post" class="row g-2">
+        <h5 class="card-title mb-3">➕ 새 예약 링크 생성</h5>
+        <form method="post" class="row g-3">
           <div class="col-md-9">
             <input type="text" name="link_name" class="form-control" placeholder="링크 이름 (예: 홍길동님 커피챗)" required>
           </div>
@@ -156,7 +151,7 @@
     <!-- 링크 목록 -->
     {% if booking_links %}
     <div class="table-responsive">
-      <table class="table table-hover table-sm">
+      <table class="table table-hover align-middle">
         <thead class="table-dark">
           <tr>
             <th style="width: 50px;">ID</th>
@@ -213,8 +208,8 @@
   <div class="tab-pane fade" id="waitlist" role="tabpanel">
     {% if waitlist %}
     <div class="table-responsive">
-      <table class="table table-hover">
-        <thead class="table-info">
+      <table class="table table-hover align-middle">
+        <thead class="table-dark">
           <tr>
             <th style="width: 50px;">ID</th>
             <th>이름</th>
@@ -264,66 +259,6 @@
     <p class="text-muted text-center py-4">대기 중인 사람이 없습니다.</p>
     {% endif %}
   </div>
-
-  <!-- 구 예약시스템 탭 -->
-  <div class="tab-pane fade" id="old-reservations" role="tabpanel">
-    {% if reservations %}
-    <div class="table-responsive">
-      <table class="table table-hover table-sm">
-        <thead class="table-secondary">
-          <tr>
-            <th>ID</th>
-            <th>이름</th>
-            <th>이메일</th>
-            <th>전화</th>
-            <th>슬롯 수</th>
-            <th>상태</th>
-            <th>작업</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for r in reservations %}
-          <tr>
-            <td>{{ r[0] }}</td>
-            <td>{{ r[2] }}</td>
-            <td class="small">{{ r[3] }}</td>
-            <td class="small">{{ r[4] }}</td>
-            <td>{{ r[6]|length }}개</td>
-            <td>
-              {% if r[9] == "승인됨" %}
-                <span class="badge bg-success">승인</span>
-              {% elif r[9] == "거절됨" %}
-                <span class="badge bg-danger">거절</span>
-              {% else %}
-                <span class="badge bg-warning">대기</span>
-              {% endif %}
-            </td>
-            <td>
-              {% if r[9] != "승인됨" %}
-                <form method="post" class="d-inline" onsubmit="return confirm('승인하시겠습니까?');">
-                  <input type="hidden" name="approve_id" value="{{ r[0] }}">
-                  <button type="submit" class="btn btn-success btn-sm">✓</button>
-                </form>
-                <form method="post" class="d-inline" onsubmit="return confirm('거절하시겠습니까?');">
-                  <input type="hidden" name="reject_id" value="{{ r[0] }}">
-                  <button type="submit" class="btn btn-warning btn-sm">✗</button>
-                </form>
-              {% endif %}
-              <form method="post" class="d-inline" onsubmit="return confirm('삭제하시겠습니까?');">
-                <input type="hidden" name="remove_id" value="{{ r[0] }}">
-                <button type="submit" class="btn btn-danger btn-sm">🗑️</button>
-              </form>
-              <button class="btn btn-info btn-sm" onclick="showOldReservationDetail({{ r|tojson }})">👁️</button>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    {% else %}
-    <p class="text-muted text-center py-4">구 시스템 예약이 없습니다.</p>
-    {% endif %}
-  </div>
 </div>
 
 <!-- 상세보기 모달 -->
@@ -345,37 +280,164 @@
 
 {% block script %}
 <style>
+  :root {
+    --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --success-gradient: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    --warning-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    --info-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    --shadow-sm: 0 2px 8px rgba(0,0,0,0.08);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.12);
+    --shadow-lg: 0 8px 24px rgba(0,0,0,0.15);
+  }
+
   .stat-card {
     padding: 1.5rem;
-    border-radius: 12px;
+    border-radius: 16px;
     text-align: center;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    transition: transform 0.2s;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: none;
+    background: white;
   }
+
   .stat-card:hover {
-    transform: translateY(-4px);
+    transform: translateY(-6px);
+    box-shadow: var(--shadow-lg);
   }
+
+  .stat-card.bg-warning-subtle {
+    background: linear-gradient(135deg, #fff9e6 0%, #fff3cd 100%) !important;
+    border-left: 4px solid #ffc107;
+  }
+
+  .stat-card.bg-success-subtle {
+    background: linear-gradient(135deg, #e8f8f5 0%, #d1f2eb 100%) !important;
+    border-left: 4px solid #28a745;
+  }
+
+  .stat-card.bg-danger-subtle {
+    background: linear-gradient(135deg, #fef0f0 0%, #fdd 100%) !important;
+    border-left: 4px solid #dc3545;
+  }
+
+  .stat-card.bg-info-subtle {
+    background: linear-gradient(135deg, #e7f5ff 0%, #d0ebff 100%) !important;
+    border-left: 4px solid #17a2b8;
+  }
+
   .stat-icon {
-    font-size: 2rem;
-    margin-bottom: 0.5rem;
+    font-size: 2.5rem;
+    margin-bottom: 0.75rem;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
   }
+
   .stat-label {
     font-size: 0.875rem;
     color: #6c757d;
-    margin-bottom: 0.25rem;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
   }
+
   .stat-value {
-    font-size: 2rem;
-    font-weight: bold;
+    font-size: 2.5rem;
+    font-weight: 700;
+    background: var(--primary-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
+
+  .nav-tabs {
+    border-bottom: 2px solid #e9ecef;
+    margin-bottom: 2rem;
+  }
+
   .nav-tabs .nav-link {
+    color: #6c757d;
+    border: none;
+    border-radius: 12px 12px 0 0;
+    padding: 1rem 1.5rem;
+    font-weight: 500;
+    transition: all 0.2s;
+  }
+
+  .nav-tabs .nav-link:hover {
+    background: #f8f9fa;
     color: #495057;
   }
+
   .nav-tabs .nav-link.active {
-    font-weight: bold;
+    background: white;
+    color: #667eea;
+    font-weight: 700;
+    border-bottom: 3px solid #667eea;
   }
-  .table th {
+
+  .table {
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .table thead {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  }
+
+  .table thead th {
     font-weight: 600;
+    color: white !important;
+    border: none;
+    padding: 1rem;
+  }
+
+  .table tbody tr {
+    transition: all 0.2s;
+  }
+
+  .table tbody tr:hover {
+    background: #f8f9fa;
+    transform: scale(1.01);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .card {
+    border: none;
+    border-radius: 16px;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.3s;
+  }
+
+  .card:hover {
+    box-shadow: var(--shadow-md);
+  }
+
+  .badge {
+    padding: 0.5rem 0.75rem;
+    font-weight: 600;
+    border-radius: 8px;
+  }
+
+  .btn {
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.2s;
+  }
+
+  .btn-primary {
+    background: var(--primary-gradient);
+    border: none;
+  }
+
+  .btn-success {
+    background: var(--success-gradient);
+    border: none;
+  }
+
+  .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
   }
 </style>
 
@@ -425,21 +487,6 @@ function showWaitlistDetail(w) {
       <dt class="col-sm-3">전화번호</dt><dd class="col-sm-9">${w[3]}</dd>
       <dt class="col-sm-3">주제</dt><dd class="col-sm-9">${w[4]}</dd>
       <dt class="col-sm-3">등록일</dt><dd class="col-sm-9">${w[6]}</dd>
-    </dl>
-  `;
-  new bootstrap.Modal(document.getElementById('detailModal')).show();
-}
-
-function showOldReservationDetail(r) {
-  document.getElementById('modalTitle').textContent = `구 예약 #${r[0]}`;
-  let slotsHtml = r[6].map((slot, i) => `<li>${i+1}. ${slot}</li>`).join('');
-  document.getElementById('modalBody').innerHTML = `
-    <dl class="row">
-      <dt class="col-sm-3">이름</dt><dd class="col-sm-9">${r[2]}</dd>
-      <dt class="col-sm-3">이메일</dt><dd class="col-sm-9">${r[3]}</dd>
-      <dt class="col-sm-3">전화번호</dt><dd class="col-sm-9">${r[4]}</dd>
-      <dt class="col-sm-3">주제</dt><dd class="col-sm-9">${r[5]}</dd>
-      <dt class="col-sm-3">예약 시간</dt><dd class="col-sm-9"><ul>${slotsHtml}</ul></dd>
     </dl>
   `;
   new bootstrap.Modal(document.getElementById('detailModal')).show();
