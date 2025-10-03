@@ -662,6 +662,111 @@ def manage_booking(cancel_token):
     return render_template("manage_booking.html", booking=booking_dict)
 
 
+@app.route("/manage/<cancel_token>/cancel", methods=["POST"])
+def cancel_booking(cancel_token):
+    """예약 취소 처리"""
+    with sqlite3.connect(DB_PATH) as conn:
+        c = conn.cursor()
+        c.execute(
+            """
+            SELECT id, event_id, status
+            FROM bookings
+            WHERE cancel_token = ?
+            """,
+            (cancel_token,)
+        )
+        row = c.fetchone()
+
+    if not row:
+        return render_template("error.html", message="유효하지 않은 예약 관리 링크입니다."), 404
+
+    booking_id, event_id, status = row
+
+    # 이미 취소된 예약인지 확인
+    if status == 'cancelled':
+        return redirect(f"/manage/{cancel_token}")
+
+    # Google Calendar 이벤트 삭제 (confirmed 상태만)
+    if status == 'confirmed' and event_id:
+        try:
+            delete_event(TOKEN_PATH, "yslhj93@gmail.com", event_id)
+            print(f"✅ Google Calendar 이벤트 삭제 성공: {event_id}")
+        except Exception as e:
+            print(f"⚠️ Google Calendar 이벤트 삭제 실패 (계속 진행): {e}")
+
+    # 예약 상태 업데이트
+    with sqlite3.connect(DB_PATH) as conn:
+        c = conn.cursor()
+        c.execute(
+            """
+            UPDATE bookings
+            SET status = 'cancelled', cancelled_at = ?
+            WHERE id = ?
+            """,
+            (datetime.now(), booking_id)
+        )
+        conn.commit()
+
+    print(f"✅ 예약 취소 완료: booking_id={booking_id}")
+
+    # 관리 페이지로 리다이렉트 (취소된 상태 표시)
+    return redirect(f"/manage/{cancel_token}")
+
+
+@app.route("/manage/<cancel_token>/change", methods=["GET"])
+def change_booking(cancel_token):
+    """예약 변경 플로우 시작 - 캘린더로 리다이렉트"""
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+
+        # bookings 테이블에서 cancel_token으로 조회
+        c.execute(
+            """
+            SELECT id, booking_link_id, email, event_id
+            FROM bookings
+            WHERE cancel_token = ?
+            """,
+            (cancel_token,)
+        )
+        booking = c.fetchone()
+
+    # 예약이 없거나 유효하지 않으면 404
+    if not booking:
+        return render_template("error.html",
+                             message="유효하지 않은 예약 링크입니다."), 404
+
+    booking_id = booking["id"]
+    booking_link_id = booking["booking_link_id"]
+    email = booking["email"]
+    original_event_id = booking["event_id"]
+
+    # booking_link의 token 조회
+    with sqlite3.connect(DB_PATH) as conn:
+        c = conn.cursor()
+        c.execute("SELECT token FROM booking_links WHERE id = ?", (booking_link_id,))
+        row = c.fetchone()
+        if not row:
+            return render_template("error.html",
+                                 message="예약 링크를 찾을 수 없습니다."), 404
+        link_token = row[0]
+
+    # 세션에 변경 모드 설정
+    session["change_mode"] = {
+        "booking_id": booking_id,
+        "original_event_id": original_event_id
+    }
+
+    # 세션에 verified_booking 설정 (캘린더 접근 허용)
+    session["verified_booking"] = {
+        "email": email,
+        "selected_slot": None  # 새로 선택될 예정
+    }
+
+    # 캘린더로 리다이렉트
+    return redirect(f"/book/{link_token}/calendar")
+
+
 @app.route("/auth/google")
 def auth_google():
     flow = Flow.from_client_secrets_file(
@@ -776,7 +881,7 @@ def admin():
                     c = conn.cursor()
                     c.execute(
                         """
-                        SELECT name, email, selected_slot, cancel_token
+                        SELECT name, email, selected_slot, cancel_token, event_id
                         FROM bookings
                         WHERE id = ?
                         """,
@@ -786,8 +891,17 @@ def admin():
                     print(f"🔍 DB 조회 결과: {row}")
 
                     if row:
-                        name, email, selected_slot, cancel_token = row
+                        name, email, selected_slot, cancel_token, old_event_id = row
                         print(f"🔍 selected_slot 원본: {selected_slot} (type: {type(selected_slot)})")
+
+                        # 🔄 변경된 예약인 경우 기존 이벤트 삭제
+                        if old_event_id:
+                            try:
+                                print(f"🗑️ 기존 이벤트 삭제 시작: {old_event_id}")
+                                delete_event(TOKEN_PATH, old_event_id)
+                                print(f"✅ 기존 이벤트 삭제 완료")
+                            except Exception as delete_error:
+                                print(f"⚠️ 기존 이벤트 삭제 실패 (계속 진행): {delete_error}")
 
                         # Google Meet 이벤트 생성
                         try:
