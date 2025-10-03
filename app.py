@@ -381,27 +381,16 @@ def book_with_link(token):
                              link_name=link_name,
                              expires_at=expires_dt.isoformat())
 
-    # POST: 예약 정보 제출
+    # POST: 이메일만 제출
     import re
 
-    name = request.form.get("name", "").strip()
     email = request.form.get("email", "").strip()
-    phone = request.form.get("phone", "").strip()
-    purpose = request.form.get("purpose", "").strip()
 
     # 유효성 검사
-    name_regex = re.compile(r"^[가-힣a-zA-Z\s]+$")
     email_regex = re.compile(r"^[\w\.-]+@[\w\.-]+\.\w+$")
-    phone_regex = re.compile(r"^[0-9/\-]+$")
 
-    if not name or not name_regex.match(name):
-        return render_template("book.html", token=token, link_name=link_name, error="이름은 한글, 영어, 띄어쓰기만 입력 가능합니다.")
     if not email or not email_regex.match(email):
-        return render_template("book.html", token=token, link_name=link_name, error="이메일 형식이 올바르지 않습니다.")
-    if not phone or not phone_regex.match(phone):
-        return render_template("book.html", token=token, link_name=link_name, error="전화번호는 숫자, - 만 사용할 수 있습니다.")
-    if not purpose or len(purpose.strip()) < 1:
-        return render_template("book.html", token=token, link_name=link_name, error="대화하고 싶은 주제를 입력해주세요.")
+        return render_template("book.html", token=token, link_name=link_name, expires_at=expires_dt.isoformat(), error="이메일 형식이 올바르지 않습니다.")
 
     # Rate Limiting: 같은 이메일로 24시간 내 1회만
     with sqlite3.connect(DB_PATH) as conn:
@@ -416,15 +405,12 @@ def book_with_link(token):
         count = c.fetchone()[0]
 
         if count > 0:
-            return render_template("book.html", token=token, link_name=link_name, error="이미 24시간 내에 예약하셨습니다.")
+            return render_template("book.html", token=token, link_name=link_name, expires_at=expires_dt.isoformat(), error="이미 24시간 내에 예약하셨습니다.")
 
-    # 세션에 임시 저장
+    # 세션에 이메일만 임시 저장
     session["pending_booking"] = {
         "booking_link_id": link_id,
-        "name": name,
         "email": email,
-        "phone": phone,
-        "purpose": purpose,
         "token": token,
         "link_name": link_name
     }
@@ -489,38 +475,11 @@ def book_calendar(token):
                                    booking=verified_booking,
                                    error="시간을 선택해주세요.")
 
-        # cancel_token 생성
-        import uuid
-        cancel_token = str(uuid.uuid4())
+        # 세션에 선택한 슬롯 저장
+        session["selected_slot"] = selected_slot
 
-        # bookings 테이블에 저장 & 링크 사용 완료 마킹
-        with sqlite3.connect(DB_PATH) as conn:
-            c = conn.cursor()
-            c.execute(
-                """
-                INSERT INTO bookings
-                (booking_link_id, name, email, phone, purpose, selected_slot, status, cancel_token, email_verified, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, 1, ?)
-                """,
-                (link_id, verified_booking["name"], verified_booking["email"],
-                 verified_booking["phone"], verified_booking["purpose"],
-                 selected_slot, cancel_token, datetime.now())
-            )
-
-            # 🆕 링크 사용 완료 표시
-            c.execute(
-                "UPDATE booking_links SET used = 1 WHERE id = ?",
-                (link_id,)
-            )
-            conn.commit()
-
-        # 세션 정리
-        session.pop("verified_booking", None)
-
-        # 성공 페이지로 이동
-        return render_template("booking_success.html",
-                               email=verified_booking["email"],
-                               selected_slot=selected_slot)
+        # 폼으로 리다이렉트
+        return redirect(f"/book/{token}/form")
 
     # GET: 캘린더 표시 (만료 시각도 전달)
     with sqlite3.connect(DB_PATH) as conn:
@@ -1103,13 +1062,29 @@ def verify_email():
     return redirect("/")
 
 
+@app.route("/booking_form", methods=["POST"])
+def booking_form():
+    """캘린더에서 시간 선택 후 → 개인정보 입력 폼"""
+    raw = request.form.get("selected_slots", "")
+    selected_slots = raw.split(",") if raw else []
+
+    if not selected_slots:
+        return redirect("/calendar")
+
+    return render_template(
+        "booking_form.html",
+        selected_slots=selected_slots
+    )
+
+
 @app.route("/reservation", methods=["POST"])
 def reservation():
+    """레거시 엔드포인트 - booking_form으로 리다이렉트"""
     raw = request.form.get("selected_slots", "")
     selected_slots = raw.split(",") if raw else []
 
     return render_template(
-        "reservation.html",
+        "booking_form.html",
         selected_slots=selected_slots
     )
 
@@ -1433,6 +1408,26 @@ def parse_datetime(value, format="%Y-%m-%dT%H:%M"):
 @app.template_filter("add_duration")
 def add_duration(value, minutes):
     return (value + timedelta(minutes=minutes)).strftime("%H:%M")
+
+
+@app.template_filter("format_datetime")
+def format_datetime(iso_str):
+    """ISO 형식 날짜를 한국어 표시로 변환 (예: 2025-10-03T14:00:00 -> 2025년 10월 3일 오후 2:00)"""
+    try:
+        dt = datetime.strptime(iso_str.strip(), "%Y-%m-%dT%H:%M:%S")
+        dt = korea_tz.localize(dt)
+
+        weekdays = ["월", "화", "수", "목", "금", "토", "일"]
+        weekday = weekdays[dt.weekday()]
+
+        hour = dt.hour
+        minute = dt.minute
+        ampm = "오전" if hour < 12 else "오후"
+        hour_12 = hour % 12 if hour % 12 != 0 else 12
+
+        return f"{dt.strftime('%Y년 %m월 %d일')} ({weekday}) {ampm} {hour_12}:{minute:02d}"
+    except Exception as e:
+        return iso_str
 
 
 if __name__ == "__main__":
