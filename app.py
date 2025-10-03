@@ -642,62 +642,80 @@ def admin():
 
         # 🆕 예약 승인 처리
         elif "approve_booking_id" in request.form:
-            booking_id = int(request.form["approve_booking_id"])
+            try:
+                booking_id = int(request.form["approve_booking_id"])
+                print(f"🔍 승인 요청 받음: booking_id={booking_id}")
 
-            with sqlite3.connect(DB_PATH) as conn:
-                c = conn.cursor()
-                c.execute(
-                    """
-                    SELECT name, email, selected_slot
-                    FROM bookings
-                    WHERE id = ?
-                    """,
-                    (booking_id,)
-                )
-                row = c.fetchone()
-
-                if row:
-                    name, email, selected_slot = row
-
-                    # Google Meet 이벤트 생성
-                    try:
-                        # ISO 포맷 시도 (2025-10-03T14:00:00)
-                        slot_dt = datetime.fromisoformat(selected_slot)
-                    except ValueError:
-                        try:
-                            # 기존 포맷 시도 (2025-10-03 14:00)
-                            slot_dt = datetime.strptime(selected_slot, "%Y-%m-%d %H:%M")
-                        except ValueError:
-                            print(f"❌ 날짜 파싱 실패: {selected_slot}")
-                            return "날짜 형식 오류", 500
-
-                    meet_link = create_meet_event(
-                        TOKEN_PATH,
-                        "hojaelee.aws@gmail.com",
-                        f"{name}님과의 미팅",
-                        slot_dt,
-                        30  # 30분
-                    )
-
-                    # bookings 업데이트
+                with sqlite3.connect(DB_PATH) as conn:
+                    c = conn.cursor()
                     c.execute(
                         """
-                        UPDATE bookings
-                        SET status = 'confirmed', meet_link = ?, confirmed_at = ?
+                        SELECT name, email, selected_slot
+                        FROM bookings
                         WHERE id = ?
                         """,
-                        (meet_link, datetime.now(), booking_id)
+                        (booking_id,)
                     )
-                    conn.commit()
+                    row = c.fetchone()
+                    print(f"🔍 DB 조회 결과: {row}")
 
-                    # 이메일 발송
-                    send_meet_email(
-                        email,
-                        name,
-                        selected_slot,
-                        meet_link,
-                        admin_notice=False
-                    )
+                    if row:
+                        name, email, selected_slot = row
+                        print(f"🔍 selected_slot 원본: {selected_slot} (type: {type(selected_slot)})")
+
+                        # Google Meet 이벤트 생성
+                        try:
+                            # ISO 포맷 시도 (2025-10-03T14:00:00)
+                            slot_dt = datetime.fromisoformat(selected_slot)
+                            print(f"✅ ISO 포맷 파싱 성공: {slot_dt}")
+                        except ValueError as e1:
+                            print(f"⚠️ ISO 포맷 파싱 실패: {e1}")
+                            try:
+                                # 기존 포맷 시도 (2025-10-03 14:00)
+                                slot_dt = datetime.strptime(selected_slot, "%Y-%m-%d %H:%M")
+                                print(f"✅ 기본 포맷 파싱 성공: {slot_dt}")
+                            except ValueError as e2:
+                                print(f"❌ 날짜 파싱 완전 실패: {e2}")
+                                return f"날짜 형식 오류: {selected_slot}", 500
+
+                        print(f"🔍 Google Meet 이벤트 생성 시작...")
+                        meet_link = create_meet_event(
+                            TOKEN_PATH,
+                            "hojaelee.aws@gmail.com",
+                            f"{name}님과의 미팅",
+                            slot_dt,
+                            30  # 30분
+                        )
+                        print(f"✅ Meet 링크 생성 성공: {meet_link}")
+
+                        # bookings 업데이트
+                        c.execute(
+                            """
+                            UPDATE bookings
+                            SET status = 'confirmed', meet_link = ?, confirmed_at = ?
+                            WHERE id = ?
+                            """,
+                            (meet_link, datetime.now(), booking_id)
+                        )
+                        conn.commit()
+                        print(f"✅ DB 업데이트 완료")
+
+                        # 이메일 발송
+                        print(f"📧 이메일 발송 시작...")
+                        send_meet_email(
+                            email,
+                            name,
+                            selected_slot,
+                            meet_link,
+                            admin_notice=False
+                        )
+                        print(f"✅ 이메일 발송 완료")
+
+            except Exception as e:
+                print(f"❌❌❌ 승인 처리 중 에러 발생: {e}")
+                import traceback
+                traceback.print_exc()
+                return f"승인 처리 실패: {str(e)}", 500
 
         # Waitlist 승인 처리
         elif "approve_waitlist_id" in request.form:
