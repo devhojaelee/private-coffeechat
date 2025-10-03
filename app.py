@@ -1074,7 +1074,7 @@ def admin():
                     duration_minutes = 30  # 기본 미팅 시간 30분
 
                     # ✅ 미팅 생성
-                    meet_link = create_meet_event(
+                    meet_link, event_id = create_meet_event(
                         TOKEN_PATH,
                         "yslhj93@gmail.com",
                         f"{name}님과의 미팅",
