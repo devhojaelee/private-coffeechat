@@ -21,12 +21,12 @@ COPY . .
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-# 포트 노출 (33333으로 변경)
-EXPOSE 33333
+# 포트 노출 (9999로 설정)
+EXPOSE 9999
 
 # 환경변수 설정 (기본값)
 ENV FLASK_ENV=production
-ENV FLASK_PORT=33333
+ENV FLASK_PORT=9999
 
 # entrypoint 실행
 ENTRYPOINT ["/entrypoint.sh"]

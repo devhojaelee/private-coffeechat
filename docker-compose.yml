@@ -5,7 +5,7 @@ services:
     build: .
     container_name: private-coffeechat
     ports:
-      - "33333:33333"
+      - "9999:9999"
     volumes:
       # 데이터베이스 영속성
       - ./user.db:/app/user.db
@@ -16,7 +16,7 @@ services:
       - ./.env.prod:/app/.env.prod
     environment:
       - FLASK_ENV=production
-      - FLASK_PORT=33333
+      - FLASK_PORT=9999
     restart: unless-stopped
     networks:
       - coffeechat-network

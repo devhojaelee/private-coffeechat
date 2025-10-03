@@ -23,8 +23,8 @@ echo "📊 Initializing database..."
 python -c "from app import init_db; init_db()"
 
 # Gunicorn으로 Flask 앱 실행
-echo "🌐 Starting Flask app with Gunicorn on port ${FLASK_PORT:-33333}..."
-exec gunicorn --bind 0.0.0.0:${FLASK_PORT:-33333} \
+echo "🌐 Starting Flask app with Gunicorn on port ${FLASK_PORT:-9999}..."
+exec gunicorn --bind 0.0.0.0:${FLASK_PORT:-9999} \
     --workers 4 \
     --timeout 120 \
     --access-logfile - \
