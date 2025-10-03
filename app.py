@@ -13,7 +13,7 @@ import sqlite3
 import json
 import sys
 from calendar_utils import create_meet_event
-from email_utils import send_meet_email
+from email_utils import send_meet_email, send_admin_notification
 from collections import defaultdict
 
 # 임시로 http 허용
@@ -569,12 +569,30 @@ def book_form(token):
                  verified_booking["selected_slot"], cancel_token, datetime.now())
             )
 
+            booking_id = c.lastrowid
+
             # 🆕 링크 사용 완료 표시
             c.execute(
                 "UPDATE booking_links SET used = 1 WHERE id = ?",
                 (link_id,)
             )
             conn.commit()
+
+        # 관리자에게 알림 이메일 발송
+        try:
+            send_admin_notification(
+                admin_email="hoje0711@naver.com",
+                name=name,
+                email=verified_booking["email"],
+                phone=phone,
+                purpose=purpose,
+                selected_slot=verified_booking["selected_slot"],
+                booking_id=booking_id,
+                host_url=request.host_url
+            )
+            print(f"✅ 관리자 알림 이메일 발송 완료: booking_id={booking_id}")
+        except Exception as e:
+            print(f"⚠️ 관리자 알림 이메일 발송 실패: {e}")
 
         # 세션 정리
         session.pop("verified_booking", None)
@@ -589,6 +607,137 @@ def book_form(token):
                            token=token,
                            link_name=link_name,
                            selected_slot=verified_booking["selected_slot"])
+
+
+@app.route("/manage/<cancel_token>")
+def manage_booking(cancel_token):
+    """예약 관리 페이지 - 예약 조회"""
+    with sqlite3.connect(DB_PATH) as conn:
+        c = conn.cursor()
+        c.execute(
+            """
+            SELECT id, name, email, phone, purpose, selected_slot, status, meet_link, confirmed_at
+            FROM bookings
+            WHERE cancel_token = ?
+            """,
+            (cancel_token,)
+        )
+        row = c.fetchone()
+
+    if not row:
+        return render_template("error.html", message="예약을 찾을 수 없습니다."), 404
+
+    booking = {
+        "id": row[0],
+        "name": row[1],
+        "email": row[2],
+        "phone": row[3],
+        "purpose": row[4],
+        "selected_slot": row[5],
+        "status": row[6],
+        "meet_link": row[7],
+        "confirmed_at": row[8],
+        "cancel_token": cancel_token
+    }
+
+    return render_template("manage_booking.html", booking=booking)
+
+
+@app.route("/manage/<cancel_token>/cancel", methods=["POST"])
+def cancel_booking(cancel_token):
+    """예약 취소 처리"""
+    with sqlite3.connect(DB_PATH) as conn:
+        c = conn.cursor()
+
+        # 예약 정보 조회
+        c.execute(
+            """
+            SELECT id, status, meet_link, event_id, selected_slot
+            FROM bookings
+            WHERE cancel_token = ?
+            """,
+            (cancel_token,)
+        )
+        row = c.fetchone()
+
+        if not row:
+            return jsonify({"success": False, "error": "예약을 찾을 수 없습니다."}), 404
+
+        booking_id, status, meet_link, event_id, selected_slot = row
+
+        if status == "cancelled":
+            return jsonify({"success": False, "error": "이미 취소된 예약입니다."}), 400
+
+        # Google Calendar 이벤트 삭제 (승인된 예약인 경우)
+        if status == "confirmed" and event_id:
+            from calendar_utils import delete_event
+            try:
+                delete_event(TOKEN_PATH, "yslhj93@gmail.com", event_id)
+                print(f"✅ 캘린더 이벤트 삭제 완료: {event_id}")
+            except Exception as e:
+                print(f"⚠️ 캘린더 이벤트 삭제 실패: {e}")
+
+        # 예약 상태 업데이트
+        c.execute(
+            "UPDATE bookings SET status = 'cancelled' WHERE id = ?",
+            (booking_id,)
+        )
+        conn.commit()
+
+    return jsonify({"success": True, "message": "예약이 취소되었습니다."})
+
+
+@app.route("/manage/<cancel_token>/change", methods=["POST"])
+def change_booking(cancel_token):
+    """예약 변경 - 새 시간 슬롯 저장"""
+    new_slot = request.json.get("new_slot")
+
+    if not new_slot:
+        return jsonify({"success": False, "error": "새 시간을 선택해주세요."}), 400
+
+    with sqlite3.connect(DB_PATH) as conn:
+        c = conn.cursor()
+
+        # 예약 정보 조회
+        c.execute(
+            """
+            SELECT id, status, event_id
+            FROM bookings
+            WHERE cancel_token = ?
+            """,
+            (cancel_token,)
+        )
+        row = c.fetchone()
+
+        if not row:
+            return jsonify({"success": False, "error": "예약을 찾을 수 없습니다."}), 404
+
+        booking_id, status, event_id = row
+
+        if status == "cancelled":
+            return jsonify({"success": False, "error": "취소된 예약은 변경할 수 없습니다."}), 400
+
+        # 기존 캘린더 이벤트 삭제 (승인된 예약인 경우)
+        if status == "confirmed" and event_id:
+            from calendar_utils import delete_event
+            try:
+                delete_event(TOKEN_PATH, "yslhj93@gmail.com", event_id)
+                print(f"✅ 기존 캘린더 이벤트 삭제: {event_id}")
+            except Exception as e:
+                print(f"⚠️ 캘린더 이벤트 삭제 실패: {e}")
+
+        # 예약 정보 업데이트 (pending 상태로 변경)
+        c.execute(
+            """
+            UPDATE bookings
+            SET selected_slot = ?, status = 'pending', meet_link = NULL, event_id = NULL, confirmed_at = NULL
+            WHERE id = ?
+            """,
+            (new_slot, booking_id)
+        )
+        conn.commit()
+
+    return jsonify({"success": True, "message": "예약이 변경되었습니다. 관리자 승인을 기다려주세요."})
 
 
 @app.route("/auth/google")
@@ -677,6 +826,8 @@ def admin():
                 # 링크는 생성만 하고 이메일 발송하지 않음 (관리자가 직접 공유)
                 print(f"✅ 예약 링크 생성 성공: {token}")
 
+            return redirect("/admin")
+
         # 🆕 예약 링크 비활성화
         elif "deactivate_link_id" in request.form:
             link_id = int(request.form["deactivate_link_id"])
@@ -686,6 +837,8 @@ def admin():
                 c.execute("UPDATE booking_links SET active = 0 WHERE id = ?", (link_id,))
                 conn.commit()
 
+            return redirect("/admin")
+
         # 🆕 예약 링크 활성화
         elif "activate_link_id" in request.form:
             link_id = int(request.form["activate_link_id"])
@@ -694,6 +847,99 @@ def admin():
                 c = conn.cursor()
                 c.execute("UPDATE booking_links SET active = 1 WHERE id = ?", (link_id,))
                 conn.commit()
+
+            return redirect("/admin")
+
+        # 🆕 예약 링크 삭제
+        elif "delete_link_id" in request.form:
+            link_id = int(request.form["delete_link_id"])
+
+            with sqlite3.connect(DB_PATH) as conn:
+                c = conn.cursor()
+                # 해당 링크로 생성된 예약이 있는지 확인
+                c.execute("SELECT COUNT(*) FROM bookings WHERE booking_link_id = ?", (link_id,))
+                booking_count = c.fetchone()[0]
+
+                if booking_count > 0:
+                    # 예약이 있으면 삭제하지 않고 비활성화만
+                    c.execute("UPDATE booking_links SET active = 0 WHERE id = ?", (link_id,))
+                    print(f"⚠️ 예약이 존재하여 링크를 비활성화만 했습니다 (ID: {link_id})")
+                else:
+                    # 예약이 없으면 완전 삭제
+                    c.execute("DELETE FROM booking_links WHERE id = ?", (link_id,))
+                    print(f"✅ 예약 링크 삭제 완료 (ID: {link_id})")
+
+                conn.commit()
+
+            return redirect("/admin")
+
+        # 🆕 사용된 링크 일괄 삭제
+        elif "delete_used_links" in request.form:
+            with sqlite3.connect(DB_PATH) as conn:
+                c = conn.cursor()
+                # used=1인 링크들 삭제
+                c.execute("DELETE FROM booking_links WHERE used = 1")
+                deleted_count = c.rowcount
+                conn.commit()
+                print(f"✅ 사용된 링크 {deleted_count}개 삭제 완료")
+
+            return redirect("/admin")
+
+        # 🆕 예약 취소 처리
+        elif "cancel_booking_id" in request.form:
+            try:
+                booking_id = int(request.form["cancel_booking_id"])
+                cancel_reason = request.form["cancel_reason"]
+                print(f"🔍 취소 요청 받음: booking_id={booking_id}, 사유={cancel_reason}")
+
+                with sqlite3.connect(DB_PATH) as conn:
+                    c = conn.cursor()
+
+                    # 예약 정보 조회
+                    c.execute(
+                        """
+                        SELECT name, email, selected_slot
+                        FROM bookings
+                        WHERE id = ?
+                        """,
+                        (booking_id,)
+                    )
+                    booking = c.fetchone()
+
+                    if not booking:
+                        print(f"❌ 예약을 찾을 수 없음: {booking_id}")
+                        return redirect("/admin")
+
+                    name, email, selected_slot = booking
+
+                    # 예약 상태를 'cancelled'로 업데이트하고 취소 사유 저장
+                    c.execute(
+                        """
+                        UPDATE bookings
+                        SET status = 'cancelled', cancel_reason = ?
+                        WHERE id = ?
+                        """,
+                        (cancel_reason, booking_id)
+                    )
+                    conn.commit()
+                    print(f"✅ 예약 취소 완료: {booking_id}")
+
+                    # 취소 이메일 발송
+                    from email_utils import send_cancellation_email
+                    send_cancellation_email(
+                        to_email=email,
+                        name=name,
+                        slot_time=selected_slot,
+                        cancel_reason=cancel_reason
+                    )
+                    print(f"✅ 취소 이메일 발송 완료: {email}")
+
+            except Exception as e:
+                print(f"❌ 예약 취소 오류: {str(e)}")
+                import traceback
+                traceback.print_exc()
+
+            return redirect("/admin")
 
         # 🆕 예약 승인 처리
         elif "approve_booking_id" in request.form:
@@ -734,23 +980,23 @@ def admin():
                                 return f"날짜 형식 오류: {selected_slot}", 500
 
                         print(f"🔍 Google Meet 이벤트 생성 시작...")
-                        meet_link = create_meet_event(
+                        meet_link, event_id = create_meet_event(
                             TOKEN_PATH,
                             "yslhj93@gmail.com",
                             f"{name}님과의 미팅",
                             slot_dt,
                             30  # 30분
                         )
-                        print(f"✅ Meet 링크 생성 성공: {meet_link}")
+                        print(f"✅ Meet 링크 생성 성공: {meet_link}, event_id: {event_id}")
 
                         # bookings 업데이트
                         c.execute(
                             """
                             UPDATE bookings
-                            SET status = 'confirmed', meet_link = ?, confirmed_at = ?
+                            SET status = 'confirmed', meet_link = ?, event_id = ?, confirmed_at = ?
                             WHERE id = ?
                             """,
-                            (meet_link, datetime.now(), booking_id)
+                            (meet_link, event_id, datetime.now(), booking_id)
                         )
                         conn.commit()
                         print(f"✅ DB 업데이트 완료")
@@ -775,6 +1021,8 @@ def admin():
                 import traceback
                 traceback.print_exc()
                 return f"승인 처리 실패: {str(e)}", 500
+
+            return redirect("/admin")
 
         # Waitlist 승인 처리
         elif "approve_waitlist_id" in request.form:
@@ -849,7 +1097,7 @@ def admin():
                     duration_minutes = 30  # 기본 미팅 시간 30분
 
                     # ✅ 미팅 생성
-                    meet_link = create_meet_event(
+                    meet_link, event_id = create_meet_event(
                         TOKEN_PATH,
                         "yslhj93@gmail.com",
                         f"{name}님과의 미팅",
@@ -986,16 +1234,31 @@ def admin():
         )
         booking_links = c.fetchall()
 
-    # 🆕 예약 목록 가져오기
+    # 🆕 예약 목록 가져오기 (지난 예약 자동 삭제)
     with sqlite3.connect(DB_PATH) as conn:
         c = conn.cursor()
+
+        # 지난 예약 삭제 (selected_slot이 현재 시간보다 이전인 것)
+        now = datetime.now()
+        c.execute(
+            """
+            DELETE FROM bookings
+            WHERE datetime(selected_slot) < datetime(?)
+            """,
+            (now.isoformat(),)
+        )
+        deleted_count = c.rowcount
+        if deleted_count > 0:
+            print(f"✅ 지난 예약 {deleted_count}개 자동 삭제")
+        conn.commit()
+
         c.execute(
             """
             SELECT b.id, b.name, b.email, b.phone, b.purpose, b.selected_slot,
-                   b.status, b.meet_link, b.created_at, bl.name as link_name
+                   b.status, b.meet_link, b.created_at, bl.name as link_name, b.cancel_reason
             FROM bookings b
             LEFT JOIN booking_links bl ON b.booking_link_id = bl.id
-            ORDER BY b.created_at DESC
+            ORDER BY b.selected_slot ASC
             """
         )
         bookings = c.fetchall()

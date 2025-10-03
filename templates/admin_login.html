@@ -2,38 +2,185 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>관리자 로그인</title>
+  <title>관리자 로그인 | 커피챗</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     body {
-      background: linear-gradient(135deg, #f0f4f8, #d9e2ec);
+      background-color: #f3ede7;
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
+      font-family: 'Inter', sans-serif;
+      padding: 1rem;
     }
-    .card {
-      max-width: 400px;
+
+    .login-container {
+      max-width: 420px;
       width: 100%;
+    }
+
+    .brand-section {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .brand-icon {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+      animation: steam 2s ease-in-out infinite;
+    }
+
+    @keyframes steam {
+      0%, 100% { transform: translateY(0px); opacity: 1; }
+      50% { transform: translateY(-5px); opacity: 0.8; }
+    }
+
+    .brand-title {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: #4a3f35;
+      margin-bottom: 0.5rem;
+    }
+
+    .brand-subtitle {
+      color: #6c757d;
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+
+    .login-card {
+      background: white;
       border-radius: 1rem;
-      box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.1);
+      padding: 2rem;
+      box-shadow: 0 4px 24px rgba(107, 76, 59, 0.1);
+      border: 1px solid #e9ecef;
+    }
+
+    .login-header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .login-header h2 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #4a3f35;
+      margin-bottom: 0.5rem;
+    }
+
+    .login-header p {
+      color: #6c757d;
+      font-size: 0.875rem;
+      margin: 0;
+    }
+
+    .form-label {
+      font-weight: 500;
+      color: #4a3f35;
+      margin-bottom: 0.5rem;
+      font-size: 0.875rem;
+    }
+
+    .form-control {
+      border-radius: 8px;
+      border: 1px solid #e9ecef;
+      padding: 0.75rem 1rem;
+      font-size: 0.875rem;
+      transition: all 0.2s;
+    }
+
+    .form-control:focus {
+      border-color: #6b4c3b;
+      box-shadow: 0 0 0 3px rgba(107, 76, 59, 0.1);
+    }
+
+    .btn-login {
+      background: linear-gradient(135deg, #6b4c3b 0%, #4a3f35 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 0.75rem;
+      font-weight: 600;
+      font-size: 0.875rem;
+      width: 100%;
+      transition: all 0.2s;
+      margin-top: 1rem;
+    }
+
+    .btn-login:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(107, 76, 59, 0.3);
+    }
+
+    .alert {
+      border-radius: 8px;
+      font-size: 0.875rem;
+      padding: 0.75rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .security-note {
+      text-align: center;
+      margin-top: 1.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid #f3ede7;
+    }
+
+    .security-note p {
+      color: #6c757d;
+      font-size: 0.75rem;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    .security-icon {
+      color: #6b4c3b;
     }
   </style>
 </head>
 <body>
-  <div class="card p-4">
-    <h2 class="mb-4 text-center">🔐 관리자 로그인</h2>
-    {% if error %}
-      <div class="alert alert-danger">{{ error }}</div>
-    {% endif %}
-    <form method="post">
-      <div class="mb-3">
-        <label class="form-label">비밀번호</label>
-        <input type="password" name="password" class="form-control" required>
+  <div class="login-container">
+    <!-- Brand Section -->
+    <div class="brand-section">
+      <div class="brand-icon">☕</div>
+      <h1 class="brand-title">커피챗 w/ hojae</h1>
+    </div>
+
+    <!-- Login Card -->
+    <div class="login-card">
+      <div class="login-header">
+        <h2>🔐 관리자 로그인</h2>
+        <p>예약 관리 시스템에 접속하려면 로그인하세요</p>
       </div>
-      <button class="btn btn-primary w-100">로그인</button>
-    </form>
+
+      {% if error %}
+        <div class="alert alert-danger">
+          <strong>⚠️ 로그인 실패</strong><br>
+          {{ error }}
+        </div>
+      {% endif %}
+
+      <form method="post">
+        <div class="mb-3">
+          <label class="form-label">관리자 비밀번호</label>
+          <input type="password" name="password" class="form-control" placeholder="비밀번호를 입력하세요" required autofocus>
+        </div>
+        <button type="submit" class="btn-login">로그인</button>
+      </form>
+
+      <div class="security-note">
+        <p>
+          <span class="security-icon">🔒</span>
+          <span>보안 연결로 안전하게 보호됩니다</span>
+        </p>
+      </div>
+    </div>
   </div>
 </body>
 </html>
