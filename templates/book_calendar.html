@@ -93,7 +93,6 @@ h2.fc-toolbar-title {
   font-weight: 600 !important;
   color: #4a3f35;
   margin: 0;
-  text-align: center !important;
 }
 
 .calendar-wrapper {
@@ -140,7 +139,7 @@ h2.fc-toolbar-title {
     </div>
 
     <p class="text-center text-muted mb-4">
-      <strong>{{ booking.name }}</strong>님, 원하시는 시간대를 선택해주세요.<br>
+      <strong>{{ booking.email }}</strong>님, 원하시는 시간대를 선택해주세요.<br>
       <small>최소 1개, 최대 16개까지 선택 가능 (연속된 시간만 선택 가능)</small>
     </p>
 
@@ -291,12 +290,10 @@ h2.fc-toolbar-title {
               selectedSlots = selectedSlots.filter(s => s !== iso);
               li.classList.remove("active");
             } else {
-              // 최대 16개 제한
               if (selectedSlots.length >= 16) {
                 alert("최대 16개까지만 선택 가능합니다.");
                 return;
               }
-              // 연속된 슬롯만 선택
               if (selectedSlots.length === 0 || isConsecutive(selectedSlots[selectedSlots.length - 1], iso)) {
                 selectedSlots.push(iso);
                 selectedSlots.sort();
@@ -305,7 +302,6 @@ h2.fc-toolbar-title {
                 alert("연속된 30분 단위로만 선택 가능합니다.");
               }
             }
-            // 첫 번째 슬롯만 전송 (기존 워크플로우 호환)
             document.getElementById("selected_slots_input").value = selectedSlots[0] || '';
             document.getElementById("nextBtn").disabled = selectedSlots.length === 0;
           });
@@ -315,9 +311,6 @@ h2.fc-toolbar-title {
       }
 
       const modalEl = document.getElementById('slotModal');
-      console.log('Modal element:', modalEl);
-      console.log('Bootstrap available:', typeof bootstrap !== 'undefined');
-
       if (!modalEl) {
         console.error('Modal element not found!');
         return;
@@ -329,9 +322,7 @@ h2.fc-toolbar-title {
       }
 
       const modal = new bootstrap.Modal(modalEl);
-      console.log('Modal instance created:', modal);
       modal.show();
-      console.log('Modal show() called');
     }
 
     document.addEventListener('DOMContentLoaded', function () {
@@ -419,11 +410,9 @@ h2.fc-toolbar-title {
             });
         },
         dateClick: function(info) {
-          console.log('Date clicked:', info.dateStr);
           openTimeSlotModal(info.dateStr);
         },
         eventClick: function(info) {
-          console.log('Event clicked:', info.event);
           const dateStr = info.event.extendedProps.date;
           openTimeSlotModal(dateStr);
         }
