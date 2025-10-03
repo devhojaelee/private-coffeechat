@@ -1,0 +1,141 @@
+/* Progress Indicator Styles */
+.progress-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 2rem;
+  padding: 1rem 0;
+  position: relative;
+}
+
+.progress-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+}
+
+.progress-step-circle {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  background-color: #e9e4df;
+  color: #8b7a69;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 1rem;
+  border: 2px solid #e9e4df;
+  transition: all 0.3s ease-in-out;
+}
+
+.progress-step-circle.active {
+  background-color: #6b4c3b;
+  border-color: #6b4c3b;
+  color: #fffdfc;
+  box-shadow: 0 0 0 4px rgba(107, 76, 59, 0.15);
+}
+
+.progress-step-circle.completed {
+  background-color: #a8927d;
+  border-color: #a8927d;
+  color: #fffdfc;
+}
+
+.progress-step-label {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: #8b7a69;
+  font-weight: 500;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.progress-step-label.active {
+  color: #6b4c3b;
+  font-weight: 600;
+}
+
+.progress-step-label.completed {
+  color: #a8927d;
+}
+
+.progress-connector {
+  flex: 1;
+  height: 2px;
+  background-color: #e9e4df;
+  margin: 0 0.5rem;
+  position: relative;
+  top: -0.75rem;
+  transition: background-color 0.3s ease-in-out;
+}
+
+.progress-connector.completed {
+  background-color: #a8927d;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .progress-stepper {
+    padding: 0.75rem 0;
+  }
+
+  .progress-step-circle {
+    width: 2.5rem;
+    height: 2.5rem;
+    font-size: 0.9rem;
+  }
+
+  .progress-step-label {
+    font-size: 0.7rem;
+  }
+
+  .progress-connector {
+    margin: 0 0.25rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .progress-stepper {
+    padding: 0.5rem 0;
+    margin-bottom: 1.5rem;
+  }
+
+  .progress-step-circle {
+    width: 2rem;
+    height: 2rem;
+    font-size: 0.8rem;
+  }
+
+  .progress-step-label {
+    font-size: 0.65rem;
+    margin-top: 0.35rem;
+  }
+
+  .progress-connector {
+    margin: 0 0.15rem;
+    top: -0.65rem;
+  }
+}
+
+/* Accessibility */
+.progress-step[aria-current="step"] .progress-step-circle {
+  outline: 2px solid #6b4c3b;
+  outline-offset: 2px;
+}
+
+/* Animation for active step */
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+.progress-step-circle.active {
+  animation: pulse 2s ease-in-out infinite;
+}
