@@ -660,7 +660,17 @@ def admin():
                     name, email, selected_slot = row
 
                     # Google Meet 이벤트 생성
-                    slot_dt = datetime.strptime(selected_slot, "%Y-%m-%d %H:%M")
+                    try:
+                        # ISO 포맷 시도 (2025-10-03T14:00:00)
+                        slot_dt = datetime.fromisoformat(selected_slot)
+                    except ValueError:
+                        try:
+                            # 기존 포맷 시도 (2025-10-03 14:00)
+                            slot_dt = datetime.strptime(selected_slot, "%Y-%m-%d %H:%M")
+                        except ValueError:
+                            print(f"❌ 날짜 파싱 실패: {selected_slot}")
+                            return "날짜 형식 오류", 500
+
                     meet_link = create_meet_event(
                         TOKEN_PATH,
                         "hojaelee.aws@gmail.com",
