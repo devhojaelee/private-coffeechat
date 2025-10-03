@@ -681,7 +681,7 @@ def admin():
                         print(f"🔍 Google Meet 이벤트 생성 시작...")
                         meet_link = create_meet_event(
                             TOKEN_PATH,
-                            "hojaelee.aws@gmail.com",
+                            "yslhj93@gmail.com",
                             f"{name}님과의 미팅",
                             slot_dt,
                             30  # 30분
@@ -792,7 +792,7 @@ def admin():
                     # ✅ 미팅 생성
                     meet_link = create_meet_event(
                         TOKEN_PATH,
-                        "hojaelee.aws@gmail.com",
+                        "yslhj93@gmail.com",
                         f"{name}님과의 미팅",
                         start_dt,
                         duration_minutes,
