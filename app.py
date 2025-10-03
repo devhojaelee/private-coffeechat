@@ -221,6 +221,7 @@ def init_db():
                 selected_slot TEXT,
                 status TEXT DEFAULT 'pending',
                 meet_link TEXT,
+                event_id TEXT,
                 cancel_token TEXT UNIQUE,
                 created_at TEXT,
                 confirmed_at TEXT,
@@ -303,6 +304,12 @@ def init_db():
 
         try:
             c.execute("ALTER TABLE waitlist ADD COLUMN email_verified INTEGER DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass
+
+        # Bookings 테이블에 event_id 컬럼 추가 (기존 DB 호환)
+        try:
+            c.execute("ALTER TABLE bookings ADD COLUMN event_id TEXT")
         except sqlite3.OperationalError:
             pass
 
@@ -589,6 +596,44 @@ def book_form(token):
                            token=token,
                            link_name=link_name,
                            selected_slot=verified_booking["selected_slot"])
+
+
+@app.route("/manage/<cancel_token>", methods=["GET"])
+def manage_booking(cancel_token):
+    """예약 관리 페이지 - cancel_token으로 예약 조회"""
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+
+        # bookings 테이블에서 cancel_token으로 조회
+        c.execute(
+            """
+            SELECT id, name, email, phone, purpose, selected_slot,
+                   status, meet_link, confirmed_at, cancel_token
+            FROM bookings
+            WHERE cancel_token = ?
+            """,
+            (cancel_token,)
+        )
+        booking = c.fetchone()
+
+    # 예약이 없거나 유효하지 않으면 404
+    if not booking:
+        return render_template("error.html",
+                             message="유효하지 않은 예약 링크입니다."), 404
+
+    # 예약 정보를 dict로 변환하여 템플릿에 전달
+    booking_dict = dict(booking)
+
+    # confirmed_at 포맷팅 (있을 경우)
+    if booking_dict.get('confirmed_at'):
+        try:
+            dt = datetime.fromisoformat(booking_dict['confirmed_at'])
+            booking_dict['confirmed_at'] = dt.strftime("%Y-%m-%d %H:%M")
+        except:
+            pass
+
+    return render_template("manage_booking.html", booking=booking_dict)
 
 
 @app.route("/auth/google")
