@@ -394,8 +394,24 @@ h2.fc-toolbar-title {
             list.appendChild(li);
           }
 
-          const modal = new bootstrap.Modal(document.getElementById('slotModal'));
+          const modalEl = document.getElementById('slotModal');
+          console.log('Modal element:', modalEl);
+          console.log('Bootstrap available:', typeof bootstrap !== 'undefined');
+
+          if (!modalEl) {
+            console.error('Modal element not found!');
+            return;
+          }
+
+          if (typeof bootstrap === 'undefined') {
+            console.error('Bootstrap not loaded!');
+            return;
+          }
+
+          const modal = new bootstrap.Modal(modalEl);
+          console.log('Modal instance created:', modal);
           modal.show();
+          console.log('Modal show() called');
         }
       });
 
