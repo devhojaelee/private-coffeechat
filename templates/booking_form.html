@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <link href="/static/css/progress.css" rel="stylesheet">
 <style>
   body {
     background-color: #f3ede7;
@@ -26,47 +27,6 @@
     background-color: #fffdfc;
     box-shadow: 0 0.5rem 1.2rem rgba(0, 0, 0, 0.05);
     border: none;
-  }
-
-  .progress-indicator {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    margin-bottom: 2rem;
-    gap: 0.5rem;
-  }
-
-  .progress-step {
-    width: 2.5rem;
-    height: 2.5rem;
-    border-radius: 50%;
-    background-color: #e9e4df;
-    color: #8b7a69;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 600;
-    font-size: 0.9rem;
-  }
-
-  .progress-step.active {
-    background-color: #6b4c3b;
-    color: #fffdfc;
-  }
-
-  .progress-step.completed {
-    background-color: #a8927d;
-    color: #fffdfc;
-  }
-
-  .progress-divider {
-    width: 2rem;
-    height: 2px;
-    background-color: #e9e4df;
-  }
-
-  .progress-divider.completed {
-    background-color: #a8927d;
   }
 
   .form-label {
@@ -138,16 +98,6 @@
   }
 
   @media (max-width: 576px) {
-    .progress-step {
-      width: 2rem;
-      height: 2rem;
-      font-size: 0.8rem;
-    }
-
-    .progress-divider {
-      width: 1rem;
-    }
-
     .card {
       padding: 1.5rem;
     }
@@ -156,16 +106,8 @@
 </head>
 <body>
   <div class="card">
-    <!-- Progress Indicator (Step 4/4) -->
-    <div class="progress-indicator">
-      <div class="progress-step completed">1</div>
-      <div class="progress-divider completed"></div>
-      <div class="progress-step completed">2</div>
-      <div class="progress-divider completed"></div>
-      <div class="progress-step completed">3</div>
-      <div class="progress-divider completed"></div>
-      <div class="progress-step active">4</div>
-    </div>
+    <!-- Progress Indicator (Step 4/4) - using centralized component -->
+    <div data-progress-step="4"></div>
 
     <h3 class="text-center mb-3">📝 예약 정보 입력</h3>
     <p class="text-center text-muted mb-4">
@@ -245,6 +187,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="/static/js/progress.js"></script>
   <script>
     // Client-side validation
     document.getElementById('bookingForm').addEventListener('submit', function(e) {
