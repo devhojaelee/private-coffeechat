@@ -381,27 +381,16 @@ def book_with_link(token):
                              link_name=link_name,
                              expires_at=expires_dt.isoformat())
 
-    # POST: 예약 정보 제출
+    # POST: 이메일만 제출
     import re
 
-    name = request.form.get("name", "").strip()
     email = request.form.get("email", "").strip()
-    phone = request.form.get("phone", "").strip()
-    purpose = request.form.get("purpose", "").strip()
 
     # 유효성 검사
-    name_regex = re.compile(r"^[가-힣a-zA-Z\s]+$")
     email_regex = re.compile(r"^[\w\.-]+@[\w\.-]+\.\w+$")
-    phone_regex = re.compile(r"^[0-9/\-]+$")
 
-    if not name or not name_regex.match(name):
-        return render_template("book.html", token=token, link_name=link_name, error="이름은 한글, 영어, 띄어쓰기만 입력 가능합니다.")
     if not email or not email_regex.match(email):
-        return render_template("book.html", token=token, link_name=link_name, error="이메일 형식이 올바르지 않습니다.")
-    if not phone or not phone_regex.match(phone):
-        return render_template("book.html", token=token, link_name=link_name, error="전화번호는 숫자, - 만 사용할 수 있습니다.")
-    if not purpose or len(purpose.strip()) < 1:
-        return render_template("book.html", token=token, link_name=link_name, error="대화하고 싶은 주제를 입력해주세요.")
+        return render_template("book.html", token=token, link_name=link_name, expires_at=expires_dt.isoformat(), error="이메일 형식이 올바르지 않습니다.")
 
     # Rate Limiting: 같은 이메일로 24시간 내 1회만
     with sqlite3.connect(DB_PATH) as conn:
@@ -416,15 +405,12 @@ def book_with_link(token):
         count = c.fetchone()[0]
 
         if count > 0:
-            return render_template("book.html", token=token, link_name=link_name, error="이미 24시간 내에 예약하셨습니다.")
+            return render_template("book.html", token=token, link_name=link_name, expires_at=expires_dt.isoformat(), error="이미 24시간 내에 예약하셨습니다.")
 
-    # 세션에 임시 저장
+    # 세션에 이메일만 임시 저장
     session["pending_booking"] = {
         "booking_link_id": link_id,
-        "name": name,
         "email": email,
-        "phone": phone,
-        "purpose": purpose,
         "token": token,
         "link_name": link_name
     }

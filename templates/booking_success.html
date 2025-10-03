@@ -2,6 +2,31 @@
 
 {% block title %}예약 완료{% endblock %}
 
+{% block progress %}
+<!-- Progress Indicator -->
+<div class="progress-stepper" data-current-step="4" role="navigation" aria-label="예약 진행 단계">
+  <div class="progress-step completed">
+    <div class="step-circle">1</div>
+    <div class="step-label">정보입력</div>
+  </div>
+  <span class="step-arrow" aria-hidden="true">→</span>
+  <div class="progress-step completed">
+    <div class="step-circle">2</div>
+    <div class="step-label">이메일인증</div>
+  </div>
+  <span class="step-arrow" aria-hidden="true">→</span>
+  <div class="progress-step completed">
+    <div class="step-circle">3</div>
+    <div class="step-label">시간선택</div>
+  </div>
+  <span class="step-arrow" aria-hidden="true">→</span>
+  <div class="progress-step active">
+    <div class="step-circle" aria-current="step">4</div>
+    <div class="step-label">완료</div>
+  </div>
+</div>
+{% endblock %}
+
 {% block content %}
 <div class="card p-5 shadow-sm border-0 coffee-card">
   <div class="text-center">

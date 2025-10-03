@@ -2,6 +2,31 @@
 
 {% block title %}{{ link_name }} - 커피챗 예약{% endblock %}
 
+{% block progress %}
+<!-- Progress Indicator -->
+<div class="progress-stepper" data-current-step="1" role="navigation" aria-label="예약 진행 단계">
+  <div class="progress-step active">
+    <div class="step-circle" aria-current="step">1</div>
+    <div class="step-label">정보입력</div>
+  </div>
+  <span class="step-arrow" aria-hidden="true">→</span>
+  <div class="progress-step">
+    <div class="step-circle">2</div>
+    <div class="step-label">이메일인증</div>
+  </div>
+  <span class="step-arrow" aria-hidden="true">→</span>
+  <div class="progress-step">
+    <div class="step-circle">3</div>
+    <div class="step-label">시간선택</div>
+  </div>
+  <span class="step-arrow" aria-hidden="true">→</span>
+  <div class="progress-step">
+    <div class="step-circle">4</div>
+    <div class="step-label">완료</div>
+  </div>
+</div>
+{% endblock %}
+
 {% block content %}
 <div class="card p-5 shadow-sm border-0 coffee-card">
   <h2 class="mb-4 text-center">☕ {{ link_name }}</h2>
@@ -12,7 +37,7 @@
   </div>
 
   <p class="text-center text-muted mb-4">
-    정보를 입력하시면 이메일 인증 후<br>
+    이메일을 입력하시면 인증 후<br>
     사용 가능한 시간대를 선택하실 수 있습니다.
   </p>
 
@@ -22,26 +47,11 @@
 
   <form method="post">
     <div class="mb-3">
-      <label class="form-label">이름 *</label>
-      <input type="text" name="name" class="form-control" placeholder="홍길동" required>
-    </div>
-
-    <div class="mb-3">
       <label class="form-label">이메일 *</label>
       <input type="email" name="email" class="form-control" placeholder="example@email.com" required>
     </div>
 
-    <div class="mb-3">
-      <label class="form-label">전화번호 *</label>
-      <input type="text" name="phone" class="form-control" placeholder="010-1234-5678" required>
-    </div>
-
-    <div class="mb-3">
-      <label class="form-label">대화하고 싶은 주제 *</label>
-      <textarea name="purpose" class="form-control" rows="4" placeholder="어떤 이야기를 나누고 싶으신가요?" required></textarea>
-    </div>
-
-    <button type="submit" class="btn coffee-btn w-100">다음 단계 (이메일 인증)</button>
+    <button type="submit" class="btn coffee-btn w-100">이메일 인증</button>
   </form>
 
   <div class="text-center mt-3">
