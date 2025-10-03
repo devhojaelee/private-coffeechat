@@ -12,7 +12,7 @@ import os
 import sqlite3
 import json
 import sys
-from calendar_utils import create_meet_event
+from calendar_utils import create_meet_event, delete_event
 from email_utils import send_meet_email
 from collections import defaultdict
 
@@ -705,7 +705,7 @@ def admin():
                     c = conn.cursor()
                     c.execute(
                         """
-                        SELECT name, email, selected_slot
+                        SELECT name, email, selected_slot, cancel_token
                         FROM bookings
                         WHERE id = ?
                         """,
@@ -715,7 +715,7 @@ def admin():
                     print(f"🔍 DB 조회 결과: {row}")
 
                     if row:
-                        name, email, selected_slot = row
+                        name, email, selected_slot, cancel_token = row
                         print(f"🔍 selected_slot 원본: {selected_slot} (type: {type(selected_slot)})")
 
                         # Google Meet 이벤트 생성
@@ -755,6 +755,10 @@ def admin():
                         conn.commit()
                         print(f"✅ DB 업데이트 완료")
 
+                        # 예약 관리 URL 생성
+                        manage_url = f"{request.host_url}manage/{cancel_token}" if cancel_token else None
+                        print(f"🔍 예약 관리 URL: {manage_url}")
+
                         # 이메일 발송
                         print(f"📧 이메일 발송 시작...")
                         send_meet_email(
@@ -762,6 +766,7 @@ def admin():
                             name,
                             selected_slot,
                             meet_link,
+                            manage_url=manage_url,
                             admin_notice=False
                         )
                         print(f"✅ 이메일 발송 완료")
