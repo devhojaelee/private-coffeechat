@@ -3,493 +3,1074 @@
 {% block title %}관리자 페이지 | 커피챗{% endblock %}
 
 {% block content %}
-<!-- 헤더 -->
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h2>🔧 관리자 대시보드</h2>
-  <form method="post" action="{{ url_for('admin_logout') }}" onsubmit="return confirmLogout();">
-    <button type="submit" class="btn btn-outline-danger btn-sm">🚪 로그아웃</button>
-  </form>
-</div>
-
-<!-- 통계 대시보드 -->
-<div class="row mb-4">
-  <div class="col-md-3 col-6 mb-3">
-    <div class="stat-card bg-warning-subtle">
-      <div class="stat-icon">⏳</div>
-      <div class="stat-label">대기 중</div>
-      <div class="stat-value" id="pending-count">{{ bookings|selectattr('6', 'equalto', 'pending')|list|length + waitlist|selectattr('5', 'equalto', 'pending')|list|length }}</div>
-    </div>
-  </div>
-  <div class="col-md-3 col-6 mb-3">
-    <div class="stat-card bg-success-subtle">
-      <div class="stat-icon">✅</div>
-      <div class="stat-label">승인됨</div>
-      <div class="stat-value">{{ bookings|selectattr('6', 'equalto', 'confirmed')|list|length + waitlist|selectattr('5', 'equalto', 'approved')|list|length }}</div>
-    </div>
-  </div>
-  <div class="col-md-3 col-6 mb-3">
-    <div class="stat-card bg-danger-subtle">
-      <div class="stat-icon">❌</div>
-      <div class="stat-label">거절됨</div>
-      <div class="stat-value">{{ waitlist|selectattr('5', 'equalto', 'rejected')|list|length }}</div>
-    </div>
-  </div>
-  <div class="col-md-3 col-6 mb-3">
-    <div class="stat-card bg-info-subtle">
-      <div class="stat-icon">🔗</div>
-      <div class="stat-label">활성 링크</div>
-      <div class="stat-value">{{ booking_links|selectattr('7', 'equalto', 1)|selectattr('6', 'equalto', 0)|list|length }}</div>
-    </div>
-  </div>
-</div>
-
-<!-- 탭 네비게이션 -->
-<ul class="nav nav-tabs mb-3" id="adminTab" role="tablist">
-  <li class="nav-item" role="presentation">
-    <button class="nav-link active" id="bookings-tab" data-bs-toggle="tab" data-bs-target="#bookings" type="button">
-      📅 예약 목록 <span class="badge bg-warning">{{ bookings|selectattr('6', 'equalto', 'pending')|list|length }}</span>
-    </button>
-  </li>
-  <li class="nav-item" role="presentation">
-    <button class="nav-link" id="links-tab" data-bs-toggle="tab" data-bs-target="#links" type="button">
-      🔗 예약 링크
-    </button>
-  </li>
-  <li class="nav-item" role="presentation">
-    <button class="nav-link" id="waitlist-tab" data-bs-toggle="tab" data-bs-target="#waitlist" type="button">
-      📝 대기명단 <span class="badge bg-warning">{{ waitlist|selectattr('5', 'equalto', 'pending')|list|length }}</span>
-    </button>
-  </li>
-</ul>
-
-<!-- 탭 컨텐츠 -->
-<div class="tab-content" id="adminTabContent">
-
-  <!-- 예약 목록 탭 -->
-  <div class="tab-pane fade show active" id="bookings" role="tabpanel">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-      <div>
-        <button class="btn btn-sm btn-outline-secondary" onclick="filterBookings('all')">전체</button>
-        <button class="btn btn-sm btn-warning text-white" onclick="filterBookings('pending')">대기 중</button>
-        <button class="btn btn-sm btn-success" onclick="filterBookings('confirmed')">승인됨</button>
-      </div>
-    </div>
-
-    {% if bookings %}
-    <div class="table-responsive">
-      <table class="table table-hover align-middle">
-        <thead class="table-dark">
-          <tr>
-            <th style="width: 50px;">ID</th>
-            <th>이름</th>
-            <th>이메일</th>
-            <th>전화</th>
-            <th>선택 시간</th>
-            <th>링크</th>
-            <th style="width: 100px;">상태</th>
-            <th style="width: 150px;">작업</th>
-          </tr>
-        </thead>
-        <tbody id="bookings-tbody">
-          {% for booking in bookings %}
-          <tr data-status="{{ booking[6] }}">
-            <td>{{ booking[0] }}</td>
-            <td>{{ booking[1] }}</td>
-            <td class="small">{{ booking[2] }}</td>
-            <td class="small">{{ booking[3] }}</td>
-            <td><strong class="text-primary">{{ booking[5] }}</strong></td>
-            <td><span class="badge bg-info">{{ booking[9] }}</span></td>
-            <td>
-              {% if booking[6] == 'confirmed' %}
-                <span class="badge bg-success">확정</span>
-              {% elif booking[6] == 'cancelled' %}
-                <span class="badge bg-danger">취소</span>
-              {% else %}
-                <span class="badge bg-warning">대기</span>
-              {% endif %}
-            </td>
-            <td>
-              {% if booking[6] == 'pending' %}
-                <form method="post" class="d-inline">
-                  <button type="submit" name="approve_booking_id" value="{{ booking[0] }}"
-                          class="btn btn-success btn-sm"
-                          onclick="return confirm('승인하시겠습니까?')">✓</button>
-                </form>
-              {% elif booking[6] == 'confirmed' and booking[7] %}
-                <a href="{{ booking[7] }}" target="_blank" class="btn btn-primary btn-sm">Meet</a>
-              {% endif %}
-              <button class="btn btn-info btn-sm" onclick='showBookingDetail({{ booking[0] }}, {{ booking|tojson }})'>📋 상세</button>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    {% else %}
-    <p class="text-muted text-center py-4">예약 내역이 없습니다.</p>
-    {% endif %}
-  </div>
-
-  <!-- 예약 링크 탭 -->
-  <div class="tab-pane fade" id="links" role="tabpanel">
-    <!-- 새 링크 생성 폼 -->
-    <div class="card border-0 shadow-sm mb-4">
-      <div class="card-body">
-        <h5 class="card-title mb-3">➕ 새 예약 링크 생성</h5>
-        <form method="post" class="row g-3">
-          <div class="col-md-9">
-            <input type="text" name="link_name" class="form-control" placeholder="링크 이름 (예: 홍길동님 커피챗)" required>
-          </div>
-          <div class="col-md-3">
-            <button type="submit" name="create_booking_link" value="1" class="btn btn-primary w-100">생성</button>
-          </div>
-        </form>
-        <small class="text-muted">💡 링크는 미접속 시 7일, 첫 접속 후 30분 유효합니다.</small>
-      </div>
-    </div>
-
-    <!-- 링크 목록 -->
-    {% if booking_links %}
-    <div class="table-responsive">
-      <table class="table table-hover align-middle">
-        <thead class="table-dark">
-          <tr>
-            <th style="width: 50px;">ID</th>
-            <th>이름</th>
-            <th>URL</th>
-            <th>생성일</th>
-            <th style="width: 100px;">상태</th>
-            <th style="width: 100px;">관리</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for link in booking_links %}
-          <tr>
-            <td>{{ link[0] }}</td>
-            <td>{{ link[2] }}</td>
-            <td>
-              <code class="small">{{ host_url }}book/{{ link[1] }}</code>
-              <button class="btn btn-sm btn-outline-secondary" onclick="copyToClipboard('{{ host_url }}book/{{ link[1] }}')">📋</button>
-            </td>
-            <td class="small">{{ link[3][:16] if link[3] }}</td>
-            <td>
-              {% if link[6] == 1 %}
-                <span class="badge bg-success">완료</span>
-              {% elif link[7] == 0 %}
-                <span class="badge bg-secondary">비활성</span>
-              {% elif link[5] and link[5] < now %}
-                <span class="badge bg-danger">만료</span>
-              {% elif link[4] %}
-                <span class="badge bg-warning">진행중</span>
-              {% else %}
-                <span class="badge bg-info">미사용</span>
-              {% endif %}
-            </td>
-            <td>
-              <form method="post" class="d-inline">
-                {% if link[7] == 1 and link[6] == 0 %}
-                  <button type="submit" name="deactivate_link_id" value="{{ link[0] }}" class="btn btn-warning btn-sm">비활성</button>
-                {% elif link[7] == 0 %}
-                  <button type="submit" name="activate_link_id" value="{{ link[0] }}" class="btn btn-success btn-sm">활성화</button>
-                {% endif %}
-              </form>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    {% else %}
-    <p class="text-muted text-center py-4">생성된 링크가 없습니다.</p>
-    {% endif %}
-  </div>
-
-  <!-- 대기명단 탭 -->
-  <div class="tab-pane fade" id="waitlist" role="tabpanel">
-    {% if waitlist %}
-    <div class="table-responsive">
-      <table class="table table-hover align-middle">
-        <thead class="table-dark">
-          <tr>
-            <th style="width: 50px;">ID</th>
-            <th>이름</th>
-            <th>이메일</th>
-            <th>전화</th>
-            <th>주제</th>
-            <th style="width: 100px;">상태</th>
-            <th style="width: 150px;">작업</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for w in waitlist %}
-          <tr>
-            <td>{{ w[0] }}</td>
-            <td>{{ w[1] }}</td>
-            <td class="small">{{ w[2] }}</td>
-            <td class="small">{{ w[3] }}</td>
-            <td class="small">{{ w[4][:50] }}...</td>
-            <td>
-              {% if w[5] == 'approved' %}
-                <span class="badge bg-success">승인</span>
-              {% elif w[5] == 'rejected' %}
-                <span class="badge bg-danger">거절</span>
-              {% else %}
-                <span class="badge bg-warning">대기</span>
-              {% endif %}
-            </td>
-            <td>
-              {% if w[5] == 'pending' %}
-                <form method="post" class="d-inline" onsubmit="return confirm('승인하시겠습니까?');">
-                  <input type="hidden" name="approve_waitlist_id" value="{{ w[0] }}">
-                  <button type="submit" class="btn btn-success btn-sm">✓</button>
-                </form>
-                <form method="post" class="d-inline" onsubmit="return confirm('거절하시겠습니까?');">
-                  <input type="hidden" name="reject_waitlist_id" value="{{ w[0] }}">
-                  <button type="submit" class="btn btn-warning btn-sm">✗</button>
-                </form>
-              {% endif %}
-              <button class="btn btn-info btn-sm" onclick='showWaitlistDetail({{ w|tojson }})'>📋 상세</button>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    {% else %}
-    <p class="text-muted text-center py-4">대기 중인 사람이 없습니다.</p>
-    {% endif %}
-  </div>
-</div>
-
-<!-- 상세보기 모달 -->
-<div class="modal fade" id="detailModal" tabindex="-1">
-  <div class="modal-dialog modal-lg">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="modalTitle">상세 정보</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body" id="modalBody">
-        <!-- 동적 컨텐츠 -->
-      </div>
-    </div>
-  </div>
-</div>
-
-{% endblock %}
-
-{% block script %}
 <style>
-  :root {
-    --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    --success-gradient: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-    --warning-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-    --info-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-    --shadow-sm: 0 2px 8px rgba(0,0,0,0.08);
-    --shadow-md: 0 4px 12px rgba(0,0,0,0.12);
-    --shadow-lg: 0 8px 24px rgba(0,0,0,0.15);
+  body {
+    background-color: #f3ede7;
+    font-family: 'Inter', sans-serif;
+  }
+
+  .admin-header {
+    background: linear-gradient(135deg, #6b4c3b 0%, #4a3f35 100%);
+    color: white;
+    padding: 2rem;
+    border-radius: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .admin-header h1 {
+    margin: 0;
+    font-size: 1.75rem;
+    font-weight: 600;
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 2rem;
   }
 
   .stat-card {
-    padding: 1.5rem;
-    border-radius: 16px;
-    text-align: center;
-    box-shadow: var(--shadow-sm);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    border: none;
     background: white;
+    padding: 1rem;
+    border-radius: 0.75rem;
+    border: 1px solid #e9ecef;
+    transition: transform 0.2s, box-shadow 0.2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 0.5rem;
   }
 
   .stat-card:hover {
-    transform: translateY(-6px);
-    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
   }
 
-  .stat-card.bg-warning-subtle {
-    background: linear-gradient(135deg, #fff9e6 0%, #fff3cd 100%) !important;
-    border-left: 4px solid #ffc107;
+  .stat-card .icon {
+    font-size: 2rem;
   }
 
-  .stat-card.bg-success-subtle {
-    background: linear-gradient(135deg, #e8f8f5 0%, #d1f2eb 100%) !important;
-    border-left: 4px solid #28a745;
+  .stat-card .value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #6b4c3b;
+    line-height: 1;
   }
 
-  .stat-card.bg-danger-subtle {
-    background: linear-gradient(135deg, #fef0f0 0%, #fdd 100%) !important;
-    border-left: 4px solid #dc3545;
-  }
-
-  .stat-card.bg-info-subtle {
-    background: linear-gradient(135deg, #e7f5ff 0%, #d0ebff 100%) !important;
-    border-left: 4px solid #17a2b8;
-  }
-
-  .stat-icon {
-    font-size: 2.5rem;
-    margin-bottom: 0.75rem;
-    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
-  }
-
-  .stat-label {
-    font-size: 0.875rem;
+  .stat-card .label {
     color: #6c757d;
-    margin-bottom: 0.5rem;
-    font-weight: 500;
+    font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.5px;
   }
 
-  .stat-value {
-    font-size: 2.5rem;
-    font-weight: 700;
-    background: var(--primary-gradient);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  .nav-tabs {
-    border-bottom: 2px solid #e9ecef;
-    margin-bottom: 2rem;
-  }
-
-  .nav-tabs .nav-link {
-    color: #6c757d;
-    border: none;
-    border-radius: 12px 12px 0 0;
-    padding: 1rem 1.5rem;
-    font-weight: 500;
-    transition: all 0.2s;
-  }
-
-  .nav-tabs .nav-link:hover {
-    background: #f8f9fa;
-    color: #495057;
-  }
-
-  .nav-tabs .nav-link.active {
+  .section {
     background: white;
-    color: #667eea;
-    font-weight: 700;
-    border-bottom: 3px solid #667eea;
+    border-radius: 1rem;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid #e9ecef;
   }
 
-  .table {
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: var(--shadow-sm);
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #f3ede7;
   }
 
-  .table thead {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  }
-
-  .table thead th {
+  .section-title {
+    font-size: 1.25rem;
     font-weight: 600;
-    color: white !important;
-    border: none;
+    color: #4a3f35;
+    margin: 0;
+  }
+
+  .table-modern {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  .table-modern thead th {
+    background-color: #f8f9fa;
+    color: #6b4c3b;
+    font-weight: 600;
     padding: 1rem;
+    text-align: center;
+    border-bottom: 2px solid #e9ecef;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
   }
 
-  .table tbody tr {
-    transition: all 0.2s;
+  .table-modern tbody tr {
+    border-bottom: 1px solid #f3ede7;
+    transition: background-color 0.2s;
   }
 
-  .table tbody tr:hover {
-    background: #f8f9fa;
-    transform: scale(1.01);
-    box-shadow: var(--shadow-sm);
+  .table-modern tbody tr:hover {
+    background-color: #f8f9fa;
   }
 
-  .card {
-    border: none;
-    border-radius: 16px;
-    box-shadow: var(--shadow-sm);
-    transition: all 0.3s;
+  .table-modern tbody td {
+    padding: 1rem;
+    vertical-align: middle;
+    white-space: nowrap;
+    text-align: center;
   }
 
-  .card:hover {
-    box-shadow: var(--shadow-md);
+  .table-modern tbody td.wrap {
+    white-space: normal;
+    max-width: 200px;
   }
 
-  .badge {
-    padding: 0.5rem 0.75rem;
+  .table-modern tbody td.email-cell {
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .table-modern tbody td.time-cell {
+    max-width: 120px;
+    font-size: 0.8rem;
+  }
+
+  .table-modern tbody td.remaining-cell {
+    max-width: 100px;
+    font-size: 0.8rem;
+  }
+
+  .status-badge {
+    display: inline-block;
+    padding: 0.35rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
     font-weight: 600;
-    border-radius: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
   }
 
-  .btn {
-    border-radius: 8px;
+  .status-pending {
+    background-color: #fff3cd;
+    color: #856404;
+  }
+
+  .status-confirmed {
+    background-color: #d4edda;
+    color: #155724;
+  }
+
+  .status-cancelled {
+    background-color: #f8d7da;
+    color: #721c24;
+  }
+
+  .btn-modern {
+    padding: 0.4rem 0.75rem;
+    border-radius: 6px;
+    border: none;
     font-weight: 500;
+    font-size: 0.875rem;
     transition: all 0.2s;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 32px;
   }
 
-  .btn-primary {
-    background: var(--primary-gradient);
+  .btn-modern.btn-sm {
+    padding: 0.35rem 0.6rem;
+    font-size: 0.75rem;
+    min-height: 28px;
+  }
+
+  .btn-approve {
+    background-color: #6b4c3b;
+    color: white;
+  }
+
+  .btn-approve:hover {
+    background-color: #4a3f35;
+    transform: translateY(-1px);
+  }
+
+  .btn-reject {
+    background-color: #dc3545;
+    color: white;
+  }
+
+  .btn-reject:hover {
+    background-color: #c82333;
+  }
+
+  .btn-create {
+    background-color: #6b4c3b;
+    color: white;
+    padding: 0.4rem 0.75rem;
+    border-radius: 6px;
     border: none;
+    font-weight: 500;
+    font-size: 0.875rem;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 32px;
   }
 
-  .btn-success {
-    background: var(--success-gradient);
-    border: none;
+  .btn-create:hover {
+    background-color: #4a3f35;
+    transform: translateY(-1px);
   }
 
-  .btn:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-sm);
+  .btn-delete {
+    background-color: #6c757d;
+    color: white;
+  }
+
+  .btn-delete:hover {
+    background-color: #5a6268;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 3rem;
+    color: #6c757d;
+  }
+
+  .empty-state-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+  }
+
+  .link-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .link-active {
+    background-color: #d4edda;
+    color: #155724;
+  }
+
+  .link-used {
+    background-color: #f8d7da;
+    color: #721c24;
+  }
+
+  .link-expired {
+    background-color: #e2e3e5;
+    color: #6c757d;
+  }
+
+  .pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 1.5rem;
+  }
+
+  .pagination button {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #e9ecef;
+    background: white;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.875rem;
+  }
+
+  .pagination button:hover:not(:disabled) {
+    background: #f8f9fa;
+    border-color: #6b4c3b;
+  }
+
+  .pagination button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .pagination button.active {
+    background: #6b4c3b;
+    color: white;
+    border-color: #6b4c3b;
+  }
+
+  .pagination .page-info {
+    color: #6c757d;
+    font-size: 0.875rem;
+    padding: 0 1rem;
+  }
+
+  @media (max-width: 768px) {
+    .stats-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .table-modern {
+      font-size: 0.875rem;
+    }
+
+    .table-modern thead th,
+    .table-modern tbody td {
+      padding: 0.75rem 0.5rem;
+    }
   }
 </style>
 
+<!-- Header -->
+<div class="admin-header">
+  <div class="d-flex justify-content-between align-items-center">
+    <h1>☕ 커피챗 관리자</h1>
+    <form method="post" action="{{ url_for('admin_logout') }}" class="m-0">
+      <button type="submit" class="btn btn-outline-light btn-sm">로그아웃</button>
+    </form>
+  </div>
+</div>
+
+<!-- Stats Header -->
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+  <h2 style="font-size: 1.25rem; font-weight: 600; color: #4a3f35; margin: 0;">📊 통계</h2>
+  <div style="display: flex; align-items: center; gap: 1rem;">
+    <button onclick="changeStatsMonth(-1)" class="btn-modern" style="padding: 0.5rem 0.75rem;">
+      ◀
+    </button>
+    <span id="statsMonthLabel" style="font-size: 1rem; font-weight: 600; color: #6b4c3b; min-width: 100px; text-align: center;">
+      <!-- JavaScript로 채워짐 -->
+    </span>
+    <button onclick="changeStatsMonth(1)" class="btn-modern" style="padding: 0.5rem 0.75rem;">
+      ▶
+    </button>
+  </div>
+</div>
+
+<!-- Stats -->
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="icon">⏳</div>
+    <div class="value" id="stat-pending">0</div>
+    <div class="label">승인 대기</div>
+  </div>
+  <div class="stat-card">
+    <div class="icon">✅</div>
+    <div class="value" id="stat-confirmed">0</div>
+    <div class="label">승인 완료</div>
+  </div>
+  <div class="stat-card">
+    <div class="icon">❌</div>
+    <div class="value" id="stat-cancelled">0</div>
+    <div class="label">취소함</div>
+  </div>
+  <div class="stat-card">
+    <div class="icon">🔗</div>
+    <div class="value" id="stat-links">0</div>
+    <div class="label">전체 활성 링크</div>
+  </div>
+</div>
+
 <script>
-function confirmLogout() {
-  return confirm("로그아웃하시겠습니까?");
+// 날짜 문자열 정규화 함수
+function normalizeDateTime(isoString) {
+  if (!isoString) return null;
+  let normalized = isoString.trim();
+  // 2025-10-16 11:30 -> 2025-10-16T11:30:00
+  if (normalized.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/)) {
+    normalized = normalized.replace(' ', 'T') + ':00';
+  }
+  return normalized;
 }
 
-function copyToClipboard(text) {
-  navigator.clipboard.writeText(text).then(() => {
-    alert('링크가 복사되었습니다!');
+// 시간 포맷팅 함수 (먼저 정의)
+function formatDateTime(isoString) {
+  if (!isoString) return '-';
+  const normalized = normalizeDateTime(isoString);
+  const date = new Date(normalized);
+  if (isNaN(date.getTime())) return '-';
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  let hours = date.getHours();
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12 || 12;
+  return `${year}-${month}-${day} ${hours}:${minutes} ${ampm}`;
+}
+
+// 짧은 시간 포맷 (테이블용)
+function formatDateTimeShort(isoString) {
+  if (!isoString) return '-';
+  const normalized = normalizeDateTime(isoString);
+  const date = new Date(normalized);
+  if (isNaN(date.getTime())) return '-';
+
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  let hours = date.getHours();
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12 || 12;
+  return `${month}/${day} ${hours}:${minutes}${ampm}`;
+}
+
+// 남은 시간 계산 함수
+function getTimeRemaining(isoString) {
+  if (!isoString) return '';
+  const now = new Date();
+
+  const normalized = normalizeDateTime(isoString);
+  const target = new Date(normalized);
+
+  // 유효한 날짜인지 확인
+  if (isNaN(target.getTime())) {
+    console.error('Invalid date:', isoString);
+    return '-';
+  }
+
+  const diff = target - now;
+
+  if (diff <= 0) return '-';
+
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+  if (days > 0) {
+    return `${days}일 ${hours}시간`;
+  } else if (hours > 0) {
+    return `${hours}시간 ${minutes}분`;
+  } else if (minutes > 0) {
+    return `${minutes}분`;
+  } else {
+    return '곧 시작';
+  }
+}
+
+// 전체 예약 데이터 (서버에서 전달)
+const allBookings = {{ bookings|tojson }};
+const allLinks = {{ booking_links|tojson }};
+let currentStatsMonth = new Date();
+
+function updateStats() {
+  const year = currentStatsMonth.getFullYear();
+  const month = currentStatsMonth.getMonth() + 1;
+
+  // 월 라벨 업데이트
+  document.getElementById('statsMonthLabel').textContent = `${year}년 ${month}월`;
+
+  // 해당 월의 예약만 필터링
+  const monthBookings = allBookings.filter(booking => {
+    if (!booking[5]) return false; // selected_slot이 없으면 제외
+    const bookingDate = new Date(booking[5]);
+    return bookingDate.getFullYear() === year && bookingDate.getMonth() + 1 === month;
   });
+
+  // 통계 업데이트
+  const pending = monthBookings.filter(b => b[6] === 'pending').length;
+  const confirmed = monthBookings.filter(b => b[6] === 'confirmed').length;
+  const cancelled = monthBookings.filter(b => b[6] === 'cancelled').length;
+  // 전체 활성 링크 (used=0, active=1) - 월별 필터링 없음
+  const activeLinks = allLinks.filter(l => l[6] === 0 && l[7] === 1).length;
+
+  document.getElementById('stat-pending').textContent = pending;
+  document.getElementById('stat-confirmed').textContent = confirmed;
+  document.getElementById('stat-cancelled').textContent = cancelled;
+  document.getElementById('stat-links').textContent = activeLinks;
 }
 
-function filterBookings(status) {
-  const rows = document.querySelectorAll('#bookings-tbody tr');
-  rows.forEach(row => {
-    if (status === 'all' || row.dataset.status === status) {
-      row.style.display = '';
-    } else {
-      row.style.display = 'none';
+function changeStatsMonth(delta) {
+  currentStatsMonth.setMonth(currentStatsMonth.getMonth() + delta);
+  updateStats();
+}
+
+// 초기 통계 표시
+updateStats();
+</script>
+
+<!-- Pending Bookings (우선순위 높음) -->
+{% set pending_bookings = bookings|selectattr('6', 'equalto', 'pending')|list %}
+{% if pending_bookings %}
+<div class="section">
+  <div class="section-header">
+    <h2 class="section-title">🔔 승인 필요 ({{ pending_bookings|length }}건)</h2>
+  </div>
+  <div class="table-responsive">
+    <table class="table-modern">
+      <thead>
+        <tr>
+          <th>이름</th>
+          <th>이메일</th>
+          <th>희망 시간</th>
+          <th>용무</th>
+          <th style="width: 200px;">작업</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for booking in pending_bookings %}
+        <tr data-booking-id="{{ booking[0] }}">
+          <td><strong>{{ booking[1] }}</strong></td>
+          <td class="small">{{ booking[2] }}</td>
+          <td class="small">{{ booking[5] }}</td>
+          <td class="small">{{ booking[4][:30] }}...</td>
+          <td>
+            <form method="post" class="d-inline" onsubmit="return confirm('승인하시겠습니까?');">
+              <input type="hidden" name="approve_booking_id" value="{{ booking[0] }}">
+              <button type="submit" class="btn-modern btn-approve">✓ 승인</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- All Bookings -->
+<div class="section">
+  <div class="section-header">
+    <h2 class="section-title">📅 전체 예약</h2>
+  </div>
+  {% if bookings %}
+  <div class="table-responsive">
+    <table class="table-modern" id="bookingsTable">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>이름</th>
+          <th>이메일</th>
+          <th>시간</th>
+          <th>남은 시간</th>
+          <th>상태</th>
+          <th>액션</th>
+        </tr>
+      </thead>
+      <tbody id="bookingsTableBody">
+        {% for booking in bookings %}
+        <tr data-booking-id="{{ booking[0] }}"
+            data-booking-row
+            data-booking-name="{{ booking[1] }}"
+            data-booking-email="{{ booking[2] }}"
+            data-booking-phone="{{ booking[3] }}"
+            data-booking-purpose="{{ booking[4] }}"
+            data-booking-slot="{{ booking[5] }}"
+            data-booking-status="{{ booking[6] }}"
+            data-booking-meet="{{ booking[7] or '' }}"
+            data-booking-created="{{ booking[8] or '' }}"
+            data-booking-link="{{ booking[9] or '' }}"
+            data-booking-cancel-reason="{{ booking[10] or '' }}">
+          <td onclick="showBookingDetailFromRow(this.parentElement)" style="cursor: pointer;">{{ booking[0] }}</td>
+          <td onclick="showBookingDetailFromRow(this.parentElement)" style="cursor: pointer;"><strong>{{ booking[1] }}</strong></td>
+          <td class="email-cell" onclick="showBookingDetailFromRow(this.parentElement)" style="cursor: pointer;" title="{{ booking[2] }}">{{ booking[2] }}</td>
+          <td class="time-cell" onclick="showBookingDetailFromRow(this.parentElement)" style="cursor: pointer;">
+            {% if booking[5] %}
+            <script>document.write(formatDateTimeShort('{{ booking[5] }}'));</script>
+            {% else %}
+            -
+            {% endif %}
+          </td>
+          <td class="remaining-cell" onclick="showBookingDetailFromRow(this.parentElement)" style="cursor: pointer; color: #6b4c3b; font-weight: 600;">
+            {% if booking[5] %}
+            <script>
+              const remaining = getTimeRemaining('{{ booking[5] }}');
+              if (remaining) document.write(remaining);
+              else document.write('-');
+            </script>
+            {% else %}
+            -
+            {% endif %}
+          </td>
+          <td onclick="showBookingDetailFromRow(this.parentElement)" style="cursor: pointer;">
+            {% if booking[6] == 'pending' %}
+              <span class="status-badge status-pending">대기</span>
+            {% elif booking[6] == 'confirmed' %}
+              <span class="status-badge status-confirmed">승인</span>
+            {% elif booking[6] == 'cancelled' %}
+              <span class="status-badge status-cancelled">취소함</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if booking[6] != 'cancelled' %}
+            <button class="btn-modern btn-delete" onclick="showCancelModal(event, {{ booking[0] }}, '{{ booking[1] }}', '{{ booking[2] }}')">
+              취소
+            </button>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="pagination" id="bookingsPagination"></div>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-state-icon">📭</div>
+    <p>예약이 없습니다</p>
+  </div>
+  {% endif %}
+</div>
+
+<!-- 예약 상세 모달 -->
+<div class="modal fade" id="bookingDetailModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius: 1rem; border: none;">
+      <div class="modal-header" style="background: linear-gradient(135deg, #6b4c3b 0%, #4a3f35 100%); color: white; border-radius: 1rem 1rem 0 0;">
+        <h5 class="modal-title">📋 예약 상세 정보</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="bookingDetailContent" style="padding: 2rem;">
+        <!-- 동적으로 채워짐 -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 예약 취소 모달 -->
+<div class="modal fade" id="cancelBookingModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius: 1rem; border: none;">
+      <div class="modal-header" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); color: white; border-radius: 1rem 1rem 0 0;">
+        <h5 class="modal-title">⚠️ 예약 취소</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" id="cancelBookingForm">
+        <div class="modal-body" style="padding: 2rem;">
+          <input type="hidden" name="cancel_booking_id" id="cancelBookingId">
+          <div class="mb-3">
+            <p><strong>예약자:</strong> <span id="cancelBookingName"></span></p>
+            <p><strong>이메일:</strong> <span id="cancelBookingEmail"></span></p>
+          </div>
+          <div class="mb-3">
+            <label for="cancelReason" class="form-label">취소 사유 <span style="color: red;">*</span></label>
+            <textarea class="form-control" id="cancelReason" name="cancel_reason" rows="4"
+                      placeholder="예약 취소 사유를 입력하세요. 이 내용은 예약자에게 이메일로 전송됩니다." required></textarea>
+          </div>
+        </div>
+        <div class="modal-footer" style="border-top: 1px solid #e9ecef;">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
+          <button type="submit" class="btn btn-danger">취소 확인</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Booking Links -->
+<div class="section">
+  <div class="section-header">
+    <h2 class="section-title">🔗 예약 링크 관리</h2>
+    <div class="d-flex gap-2">
+      <form method="post" class="d-inline" onsubmit="return confirm('사용된 모든 링크를 삭제하시겠습니까?');">
+        <input type="hidden" name="delete_used_links" value="1">
+        <button type="submit" class="btn-modern btn-delete">✕ 사용된 링크 삭제</button>
+      </form>
+      <button class="btn-modern btn-create" onclick="document.getElementById('createLinkForm').style.display='block'">+ 새 링크 생성</button>
+    </div>
+  </div>
+
+  <!-- Create Form (Initially Hidden) -->
+  <div id="createLinkForm" style="display: none; margin-bottom: 1.5rem; padding: 1.5rem; background: #f8f9fa; border-radius: 8px;">
+    <form method="post">
+      <input type="hidden" name="create_booking_link" value="1">
+      <div class="mb-3">
+        <label class="form-label">링크 이름</label>
+        <input type="text" name="link_name" class="form-control" placeholder="예: 5월 커피챗 링크" required>
+      </div>
+      <button type="submit" class="btn-modern btn-approve">생성</button>
+      <button type="button" class="btn-modern btn-reject" onclick="document.getElementById('createLinkForm').style.display='none'">취소</button>
+    </form>
+  </div>
+
+  {% if booking_links %}
+  <div class="table-responsive">
+    <table class="table-modern" id="linksTable">
+      <thead>
+        <tr>
+          <th>링크 이름</th>
+          <th>예약 URL</th>
+          <th>생성일</th>
+          <th>상태</th>
+          <th>작업</th>
+        </tr>
+      </thead>
+      <tbody id="linksTableBody">
+        {% for link in booking_links %}
+        <tr data-link-row>
+          <td><strong>{{ link[2] }}</strong></td>
+          <td>
+            <div class="d-flex align-items-center gap-2">
+              <input type="text" class="form-control form-control-sm font-monospace"
+                     id="link-url-{{ link[0] }}"
+                     value="{{ host_url }}book/{{ link[1] }}"
+                     readonly
+                     style="font-size: 0.75rem; max-width: 300px;">
+              <button class="btn-modern btn-approve btn-sm"
+                      onclick="copyLink(event, '{{ link[0] }}')"
+                      title="복사">
+                📋
+              </button>
+            </div>
+          </td>
+          <td class="small">{{ link[3][:10] }}</td>
+          <td>
+            {% if link[6] == 1 %}
+              <span class="link-badge link-used">사용됨</span>
+            {% elif link[7] == 1 %}
+              <span class="link-badge link-active">활성</span>
+            {% else %}
+              <span class="link-badge link-expired">만료</span>
+            {% endif %}
+          </td>
+          <td>
+            <div class="d-flex gap-1">
+              {% if link[7] == 1 and link[6] == 0 %}
+              <form method="post" class="d-inline">
+                <input type="hidden" name="deactivate_link_id" value="{{ link[0] }}">
+                <button type="submit" class="btn-modern btn-reject btn-sm">비활성화</button>
+              </form>
+              {% elif link[7] == 0 and link[6] == 0 %}
+              <form method="post" class="d-inline">
+                <input type="hidden" name="activate_link_id" value="{{ link[0] }}">
+                <button type="submit" class="btn-modern btn-approve btn-sm">활성화</button>
+              </form>
+              {% endif %}
+              <form method="post" class="d-inline" onsubmit="return confirm('정말 삭제하시겠습니까? (예약이 있으면 비활성화만 됩니다)');">
+                <input type="hidden" name="delete_link_id" value="{{ link[0] }}">
+                <button type="submit" class="btn-modern btn-delete btn-sm" title="삭제">✕</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="pagination" id="linksPagination"></div>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-state-icon">🔗</div>
+    <p>생성된 링크가 없습니다</p>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+// 이메일 링크에서 특정 예약으로 이동
+window.addEventListener('DOMContentLoaded', function() {
+  const hash = window.location.hash;
+  if (hash.startsWith('#booking-')) {
+    const bookingId = hash.replace('#booking-', '');
+    setTimeout(() => {
+      const bookingRow = document.querySelector(`tr[data-booking-id="${bookingId}"]`);
+      if (bookingRow) {
+        bookingRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        bookingRow.style.backgroundColor = '#fff3cd';
+        setTimeout(() => {
+          bookingRow.style.backgroundColor = '';
+        }, 3000);
+      }
+    }, 300);
+  }
+
+  // Pagination for booking links and all bookings
+  initBookingsPagination();
+  initLinksPagination();
+});
+
+// 전체 예약 테이블 페이지네이션
+function initBookingsPagination() {
+  const bookingsTableBody = document.getElementById('bookingsTableBody');
+  if (!bookingsTableBody) return;
+
+  const rows = Array.from(bookingsTableBody.querySelectorAll('tr[data-booking-row]'));
+  const itemsPerPage = 10;
+  const totalPages = Math.ceil(rows.length / itemsPerPage);
+  let currentPage = 1;
+
+  function renderPage(page) {
+    // Hide all rows
+    rows.forEach(row => row.style.display = 'none');
+
+    // Show current page rows
+    const start = (page - 1) * itemsPerPage;
+    const end = start + itemsPerPage;
+    rows.slice(start, end).forEach(row => row.style.display = '');
+
+    // Update pagination controls
+    renderPagination(page);
+  }
+
+  function renderPagination(page) {
+    const paginationContainer = document.getElementById('bookingsPagination');
+    if (!paginationContainer || totalPages <= 1) {
+      paginationContainer.innerHTML = '';
+      return;
     }
+
+    let html = '';
+
+    // Previous button
+    html += `<button onclick="changeBookingPage(${page - 1})" ${page === 1 ? 'disabled' : ''}>◀</button>`;
+
+    // Page numbers
+    const maxVisiblePages = 5;
+    let startPage = Math.max(1, page - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+    if (endPage - startPage < maxVisiblePages - 1) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+
+    if (startPage > 1) {
+      html += `<button onclick="changeBookingPage(1)">1</button>`;
+      if (startPage > 2) {
+        html += `<span class="page-info">...</span>`;
+      }
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      html += `<button onclick="changeBookingPage(${i})" class="${i === page ? 'active' : ''}">${i}</button>`;
+    }
+
+    if (endPage < totalPages) {
+      if (endPage < totalPages - 1) {
+        html += `<span class="page-info">...</span>`;
+      }
+      html += `<button onclick="changeBookingPage(${totalPages})">${totalPages}</button>`;
+    }
+
+    // Next button
+    html += `<button onclick="changeBookingPage(${page + 1})" ${page === totalPages ? 'disabled' : ''}>▶</button>`;
+
+    // Page info
+    html += `<span class="page-info">${page} / ${totalPages}</span>`;
+
+    paginationContainer.innerHTML = html;
+  }
+
+  // Make changeBookingPage globally accessible
+  window.changeBookingPage = function(page) {
+    if (page < 1 || page > totalPages) return;
+    currentPage = page;
+    renderPage(currentPage);
+  };
+
+  // Initial render
+  renderPage(currentPage);
+}
+
+// 링크 테이블 페이지네이션
+function initLinksPagination() {
+  const linksTableBody = document.getElementById('linksTableBody');
+  if (!linksTableBody) return;
+
+  const rows = Array.from(linksTableBody.querySelectorAll('tr[data-link-row]'));
+  const itemsPerPage = 10;
+  const totalPages = Math.ceil(rows.length / itemsPerPage);
+  let currentPage = 1;
+
+  function renderPage(page) {
+    // Hide all rows
+    rows.forEach(row => row.style.display = 'none');
+
+    // Show current page rows
+    const start = (page - 1) * itemsPerPage;
+    const end = start + itemsPerPage;
+    rows.slice(start, end).forEach(row => row.style.display = '');
+
+    // Update pagination controls
+    renderPagination(page);
+  }
+
+  function renderPagination(page) {
+    const paginationContainer = document.getElementById('linksPagination');
+    if (!paginationContainer || totalPages <= 1) {
+      paginationContainer.innerHTML = '';
+      return;
+    }
+
+    let html = '';
+
+    // Previous button
+    html += `<button onclick="changeLinkPage(${page - 1})" ${page === 1 ? 'disabled' : ''}>◀</button>`;
+
+    // Page numbers
+    const maxVisiblePages = 5;
+    let startPage = Math.max(1, page - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+    if (endPage - startPage < maxVisiblePages - 1) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+
+    if (startPage > 1) {
+      html += `<button onclick="changeLinkPage(1)">1</button>`;
+      if (startPage > 2) {
+        html += `<span class="page-info">...</span>`;
+      }
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      html += `<button onclick="changeLinkPage(${i})" class="${i === page ? 'active' : ''}">${i}</button>`;
+    }
+
+    if (endPage < totalPages) {
+      if (endPage < totalPages - 1) {
+        html += `<span class="page-info">...</span>`;
+      }
+      html += `<button onclick="changeLinkPage(${totalPages})">${totalPages}</button>`;
+    }
+
+    // Next button
+    html += `<button onclick="changeLinkPage(${page + 1})" ${page === totalPages ? 'disabled' : ''}>▶</button>`;
+
+    // Page info
+    html += `<span class="page-info">${page} / ${totalPages}</span>`;
+
+    paginationContainer.innerHTML = html;
+  }
+
+  // Make changeLinkPage globally accessible
+  window.changeLinkPage = function(page) {
+    if (page < 1 || page > totalPages) return;
+    currentPage = page;
+    renderPage(currentPage);
+  };
+
+  // Initial render
+  renderPage(currentPage);
+}
+
+// 예약 상세 정보 표시 (data 속성에서 읽기)
+function showBookingDetailFromRow(row) {
+  const id = row.dataset.bookingId;
+  const name = row.dataset.bookingName;
+  const email = row.dataset.bookingEmail;
+  const phone = row.dataset.bookingPhone;
+  const purpose = row.dataset.bookingPurpose;
+  const selectedSlot = row.dataset.bookingSlot;
+  const status = row.dataset.bookingStatus;
+  const meetLink = row.dataset.bookingMeet;
+  const createdAt = row.dataset.bookingCreated;
+  const linkName = row.dataset.bookingLink;
+  const cancelReason = row.dataset.bookingCancelReason;
+
+  let statusBadge = '';
+  if (status === 'pending') {
+    statusBadge = '<span class="status-badge status-pending">대기</span>';
+  } else if (status === 'confirmed') {
+    statusBadge = '<span class="status-badge status-confirmed">승인</span>';
+  } else if (status === 'cancelled') {
+    statusBadge = '<span class="status-badge status-cancelled">취소함</span>';
+  }
+
+  const content = `
+    <div style="display: grid; gap: 1.25rem; font-family: 'Inter', sans-serif;">
+      <div>
+        <label style="font-size: 0.75rem; color: #6c757d; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">예약 ID</label>
+        <div style="font-size: 1.125rem; font-weight: 600; color: #4a3f35; margin-top: 0.25rem;">#${id}</div>
+      </div>
+      <div>
+        <label style="font-size: 0.75rem; color: #6c757d; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">상태</label>
+        <div style="margin-top: 0.25rem;">${statusBadge}</div>
+      </div>
+      <div>
+        <label style="font-size: 0.75rem; color: #6c757d; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">이름</label>
+        <div style="font-size: 1rem; color: #4a3f35; margin-top: 0.25rem;">${name}</div>
+      </div>
+      <div>
+        <label style="font-size: 0.75rem; color: #6c757d; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">이메일</label>
+        <div style="font-size: 0.875rem; color: #4a3f35; margin-top: 0.25rem;">${email}</div>
+      </div>
+      <div>
+        <label style="font-size: 0.75rem; color: #6c757d; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">전화번호</label>
+        <div style="font-size: 0.875rem; color: #4a3f35; margin-top: 0.25rem;">${phone || '-'}</div>
+      </div>
+      <div>
+        <label style="font-size: 0.75rem; color: #6c757d; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">희망 시간</label>
+        <div style="font-size: 1.125rem; color: #6b4c3b; font-weight: 600; margin-top: 0.25rem;">📅 ${formatDateTime(selectedSlot)}</div>
+        ${getTimeRemaining(selectedSlot) ? `<div style="font-size: 0.875rem; color: #6b4c3b; margin-top: 0.5rem; font-weight: 500;">⏰ ${getTimeRemaining(selectedSlot)}</div>` : ''}
+      </div>
+      <div>
+        <label style="font-size: 0.75rem; color: #6c757d; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">용무</label>
+        <div style="font-size: 0.875rem; color: #4a3f35; background: #f8f9fa; padding: 0.875rem; border-radius: 8px; margin-top: 0.25rem; line-height: 1.5;">${purpose || '-'}</div>
+      </div>
+      ${meetLink ? `
+      <div>
+        <label style="font-size: 0.75rem; color: #6c757d; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Google Meet 링크</label>
+        <div style="margin-top: 0.25rem;">
+          <a href="${meetLink}" target="_blank" style="font-size: 0.875rem; color: #6b4c3b; text-decoration: none; word-break: break-all; display: inline-block; padding: 0.5rem 0.75rem; background: #f3ede7; border-radius: 6px;">
+            🔗 ${meetLink}
+          </a>
+        </div>
+      </div>
+      ` : ''}
+      ${linkName ? `
+      <div>
+        <label style="font-size: 0.75rem; color: #6c757d; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">예약 링크</label>
+        <div style="font-size: 0.875rem; color: #4a3f35; margin-top: 0.25rem;">${linkName}</div>
+      </div>
+      ` : ''}
+      ${cancelReason ? `
+      <div>
+        <label style="font-size: 0.75rem; color: #6c757d; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">취소 사유</label>
+        <div style="font-size: 0.875rem; color: #dc3545; margin-top: 0.25rem; padding: 0.75rem; background: #f8d7da; border-radius: 6px; white-space: pre-wrap;">${cancelReason}</div>
+      </div>
+      ` : ''}
+      <div>
+        <label style="font-size: 0.75rem; color: #6c757d; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">생성일</label>
+        <div style="font-size: 0.875rem; color: #6c757d; margin-top: 0.25rem;">${createdAt ? createdAt.substring(0, 19).replace('T', ' ') : '-'}</div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('bookingDetailContent').innerHTML = content;
+  const modal = new bootstrap.Modal(document.getElementById('bookingDetailModal'));
+  modal.show();
+}
+
+// 취소 모달 표시
+function showCancelModal(event, bookingId, name, email) {
+  event.stopPropagation();
+  document.getElementById('cancelBookingId').value = bookingId;
+  document.getElementById('cancelBookingName').textContent = name;
+  document.getElementById('cancelBookingEmail').textContent = email;
+  document.getElementById('cancelReason').value = '';
+
+  const modal = new bootstrap.Modal(document.getElementById('cancelBookingModal'));
+  modal.show();
+}
+
+// 링크 복사 함수
+function copyLink(event, linkId) {
+  const input = document.getElementById('link-url-' + linkId);
+  input.select();
+  input.setSelectionRange(0, 99999); // 모바일 지원
+
+  navigator.clipboard.writeText(input.value).then(() => {
+    // 복사 성공 알림
+    const button = event.target;
+    const originalText = button.innerHTML;
+    button.innerHTML = '✅';
+    setTimeout(() => {
+      button.innerHTML = originalText;
+    }, 2000);
+  }).catch(err => {
+    alert('복사 실패: ' + err);
   });
-}
-
-function showBookingDetail(id, booking) {
-  document.getElementById('modalTitle').textContent = `예약 상세 #${id}`;
-  document.getElementById('modalBody').innerHTML = `
-    <dl class="row">
-      <dt class="col-sm-3">이름</dt><dd class="col-sm-9">${booking[1]}</dd>
-      <dt class="col-sm-3">이메일</dt><dd class="col-sm-9">${booking[2]}</dd>
-      <dt class="col-sm-3">전화번호</dt><dd class="col-sm-9">${booking[3]}</dd>
-      <dt class="col-sm-3">용건</dt><dd class="col-sm-9">${booking[4]}</dd>
-      <dt class="col-sm-3">선택 시간</dt><dd class="col-sm-9"><strong>${booking[5]}</strong></dd>
-      ${booking[7] ? `<dt class="col-sm-3">Meet 링크</dt><dd class="col-sm-9"><a href="${booking[7]}" target="_blank">${booking[7]}</a></dd>` : ''}
-    </dl>
-  `;
-  new bootstrap.Modal(document.getElementById('detailModal')).show();
-}
-
-function showWaitlistDetail(w) {
-  document.getElementById('modalTitle').textContent = `대기명단 #${w[0]}`;
-  document.getElementById('modalBody').innerHTML = `
-    <dl class="row">
-      <dt class="col-sm-3">이름</dt><dd class="col-sm-9">${w[1]}</dd>
-      <dt class="col-sm-3">이메일</dt><dd class="col-sm-9">${w[2]}</dd>
-      <dt class="col-sm-3">전화번호</dt><dd class="col-sm-9">${w[3]}</dd>
-      <dt class="col-sm-3">주제</dt><dd class="col-sm-9">${w[4]}</dd>
-      <dt class="col-sm-3">등록일</dt><dd class="col-sm-9">${w[6]}</dd>
-    </dl>
-  `;
-  new bootstrap.Modal(document.getElementById('detailModal')).show();
 }
 
 // 10분 후 자동 로그아웃
