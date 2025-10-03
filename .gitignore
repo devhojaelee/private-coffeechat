@@ -5,3 +5,20 @@ token.json
 venv/
 .env*
 
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Docker
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Backup files
+*.backup
+backup/
+

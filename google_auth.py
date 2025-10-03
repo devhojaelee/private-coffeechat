@@ -16,7 +16,7 @@ SCOPES = [
 ]
 
 # ✅ REDIRECT_URI는 이미 app.py에서 load_dotenv() 했으니까 여기서는 getenv만 사용
-REDIRECT_URI = os.getenv("REDIRECT_URI", "http://hojaelee.com:9999/oauth2callback")  # 기본값은 localhost로 안전하게
+REDIRECT_URI = os.getenv("REDIRECT_URI", "http://hojaelee.com:33333/oauth2callback")  # 기본값은 33333 포트
 
 def build_flow():
     return Flow.from_client_secrets_file(

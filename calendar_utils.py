@@ -1,9 +1,23 @@
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from datetime import datetime, timedelta
+import os
 
 def create_meet_event(token_path, calendar_id, summary, start_time, duration_minutes=30):
+    # Check if token file exists
+    if not os.path.exists(token_path):
+        raise FileNotFoundError(
+            f"❌ token.json not found at {token_path}\n"
+            f"Please visit /auth/google to generate initial token"
+        )
+
     creds = Credentials.from_authorized_user_file(token_path)
+
+    # Check if token needs refresh
+    if creds.expired and creds.refresh_token:
+        from app import refresh_access_token
+        creds = refresh_access_token(creds)
+
     service = build("calendar", "v3", credentials=creds)
 
     end_time = start_time + timedelta(minutes=duration_minutes)

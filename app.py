@@ -47,10 +47,10 @@ load_dotenv(dotenv_path=env_file)
 from google_auth import build_flow
 
 
-PORT = int(os.getenv("FLASK_PORT", 9999))
+PORT = int(os.getenv("FLASK_PORT", 33333))
 DEBUG = os.getenv("FLASK_ENV") == "development"
 
-REDIRECT_URI = os.getenv("REDIRECT_URI", "http://hojaelee.com:9999/oauth2callback")
+REDIRECT_URI = os.getenv("REDIRECT_URI", "http://hojaelee.com:33333/oauth2callback")
 
 
 # 초대코드 시스템 제거됨 (waitlist 시스템으로 대체)
@@ -98,6 +98,12 @@ def refresh_access_token(creds):
 def get_available_time_slots(
     token_path=TOKEN_PATH, year=None, month=None, view="month"
 ):
+    # Check if token file exists
+    if not os.path.exists(token_path):
+        return jsonify({
+            "error": "Token not found. Please visit /auth/google to authenticate first."
+        }), 401
+
     creds = Credentials.from_authorized_user_file(token_path)
     # ✅ 토큰이 만료됐으면 새로 갱신
     if creds.expired and creds.refresh_token:
