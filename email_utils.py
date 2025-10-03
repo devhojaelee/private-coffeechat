@@ -100,8 +100,7 @@ def send_meet_email(to_email, name, slot_time, meet_link, manage_url=None, admin
     else:
         msg["Subject"] = f"{name}님과의 Google Meet 미팅 안내"
 
-        # 기본 메시지 구성
-        content = f"""안녕하세요 {name}님,
+        email_body = f"""안녕하세요 {name}님,
 
 요청하신 미팅이 다음 시간에 승인되었습니다:
 
@@ -109,9 +108,8 @@ def send_meet_email(to_email, name, slot_time, meet_link, manage_url=None, admin
 🔗 Google Meet 링크: {meet_link}
 """
 
-        # manage_url이 있으면 예약 관리 링크 추가
         if manage_url:
-            content += f"""
+            email_body += f"""
 📝 예약 관리:
 예약을 확인하거나 변경/취소하려면 아래 링크를 이용하세요:
 {manage_url}
@@ -119,8 +117,8 @@ def send_meet_email(to_email, name, slot_time, meet_link, manage_url=None, admin
 ⚠️ 주의: 예약 취소 시 복구가 불가능합니다.
 """
 
-        content += "\n감사합니다.\n"
-        msg.set_content(content)
+        email_body += "\n감사합니다.\n"
+        msg.set_content(email_body)
 
     msg["From"] = os.getenv("NAVER_ADDRESS")
     msg["To"] = to_email
