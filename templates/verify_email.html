@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}이메일 인증{% endblock %}
+
+{% block content %}
+<div class="card p-5 shadow-sm border-0 coffee-card">
+  <h2 class="mb-4 text-center">📧 이메일 인증</h2>
+  <p class="text-center text-muted mb-4">
+    <strong>{{ email }}</strong> 으로 인증 코드를 발송했습니다.<br>
+    이메일을 확인하고 6자리 코드를 입력해주세요.
+  </p>
+
+  {% if error %}
+    <div class="alert alert-danger">{{ error }}</div>
+  {% endif %}
+
+  <form method="post" action="/verify-email">
+    <input type="hidden" name="email" value="{{ email }}">
+    <input type="hidden" name="action" value="{{ action }}">
+
+    <div class="mb-3">
+      <label class="form-label">인증 코드 (6자리)</label>
+      <input type="text" name="code" class="form-control text-center" maxlength="6" pattern="\d{6}" placeholder="000000" required autofocus>
+      <small class="text-muted">인증 코드는 5분간 유효합니다.</small>
+    </div>
+
+    <button type="submit" class="btn coffee-btn w-100">인증 완료</button>
+  </form>
+
+  <div class="text-center mt-3">
+    <a href="/" class="text-muted">홈으로 돌아가기</a>
+  </div>
+</div>
+{% endblock %}
+
+{% block script %}
+<style>
+  body {
+    background-color: #f3ede7;
+    font-family: 'Inter', sans-serif;
+    color: #5e4634;
+  }
+
+  .coffee-card {
+    background-color: #fffdfc;
+    border-radius: 1rem;
+    max-width: 500px;
+    margin: 2rem auto;
+  }
+
+  .coffee-btn {
+    background-color: #6b4c3b;
+    color: white;
+    border: 1px solid #6b4c3b;
+    transition: all 0.2s ease-in-out;
+  }
+
+  .coffee-btn:hover {
+    background-color: #f3ede7;
+    color: #6b4c3b;
+    border: 1px solid #6b4c3b;
+  }
+
+  input[type="text"].text-center {
+    font-size: 1.5rem;
+    letter-spacing: 0.5rem;
+    font-weight: 600;
+  }
+
+  .form-control:focus {
+    border-color: #c5a990;
+    box-shadow: 0 0 0 0.2rem rgba(197, 169, 144, 0.25);
+  }
+</style>
+{% endblock %}

@@ -6,38 +6,6 @@
 <h2 class="mb-4 text-center">예약 신청</h2>
 
 <form method="POST" action="/submit" novalidate>
-  <!-- 이름 -->
-  <div class="mb-3">
-    <label class="form-label">이름</label>
-    <input name="name" class="form-control" required>
-    <div class="invalid-feedback">
-      한글, 영어, 띄어쓰기만 입력할 수 있어요.
-    </div>
-  </div>
-
-  <!-- 이메일 -->
-  <div class="mb-3">
-    <label class="form-label">이메일</label>
-    <input type="email" name="email" class="form-control" required>
-    <div class="invalid-feedback">
-      올바른 이메일 형식을 입력해주세요.
-    </div>
-  </div>
-
-  <!-- 전화번호 -->
-  <div class="mb-3">
-    <label class="form-label">전화번호</label>
-    <input name="phone" class="form-control" required>
-    <div class="invalid-feedback">
-      숫자와 '-' 만 입력할 수 있어요. 예: 010-1234-5678
-    </div>
-  </div>
-
-  <!-- 용건 -->
-  <div class="mb-3">
-    <label class="form-label">대화하고 싶은 주제</label>
-    <textarea name="purpose" class="form-control" rows="3" required></textarea>
-  </div>
 
   <!-- 선택된 시간대 -->
   <h5 class="mt-4">선택한 예약 시간</h5>

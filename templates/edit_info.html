@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}정보 수정{% endblock %}
+
+{% block content %}
+<div class="card p-5 shadow-sm border-0 coffee-card">
+  <h2 class="mb-4 text-center">📝 정보 수정</h2>
+  <p class="text-center text-muted mb-4">
+    등록하신 정보를 수정할 수 있습니다.<br>
+    <small class="text-danger">* 관리자 승인 전(대기 중 상태)에만 수정 가능합니다.</small>
+  </p>
+
+  {% if error %}
+    <div class="alert alert-danger">{{ error }}</div>
+  {% endif %}
+
+  <form method="post" action="/edit-info/{{ email }}">
+    <div class="mb-3">
+      <label class="form-label">이메일 (변경 불가)</label>
+      <input type="email" class="form-control" value="{{ email }}" disabled>
+      <small class="text-muted">이메일은 변경할 수 없습니다.</small>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">이름 *</label>
+      <input type="text" name="name" class="form-control" value="{{ name }}" required>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">전화번호 *</label>
+      <input type="tel" name="phone" class="form-control" value="{{ phone }}" required>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">용건 *</label>
+      <textarea name="purpose" class="form-control" rows="4" required>{{ purpose }}</textarea>
+    </div>
+
+    <button type="submit" class="btn coffee-btn w-100">수정 완료</button>
+  </form>
+
+  <div class="text-center mt-3">
+    <a href="/" class="text-muted">홈으로 돌아가기</a>
+  </div>
+</div>
+{% endblock %}
+
+{% block script %}
+<style>
+  body {
+    background-color: #f3ede7;
+    font-family: 'Inter', sans-serif;
+    color: #5e4634;
+  }
+
+  .coffee-card {
+    background-color: #fffdfc;
+    border-radius: 1rem;
+    max-width: 500px;
+    margin: 2rem auto;
+  }
+
+  .coffee-btn {
+    background-color: #6b4c3b;
+    color: white;
+    border: 1px solid #6b4c3b;
+    transition: all 0.2s ease-in-out;
+  }
+
+  .coffee-btn:hover {
+    background-color: #f3ede7;
+    color: #6b4c3b;
+    border: 1px solid #6b4c3b;
+  }
+
+  .form-control:focus {
+    border-color: #c5a990;
+    box-shadow: 0 0 0 0.2rem rgba(197, 169, 144, 0.25);
+  }
+
+  textarea.form-control {
+    resize: vertical;
+  }
+</style>
+{% endblock %}

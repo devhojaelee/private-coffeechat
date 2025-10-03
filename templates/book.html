@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}{{ link_name }} - 커피챗 예약{% endblock %}
+
+{% block content %}
+<div class="card p-5 shadow-sm border-0 coffee-card">
+  <h2 class="mb-4 text-center">☕ {{ link_name }}</h2>
+
+  <!-- 🆕 카운트다운 타이머 -->
+  <div class="alert alert-warning text-center mb-4" id="timer-alert">
+    <strong>⏰ 남은 시간: <span id="countdown">계산 중...</span></strong>
+  </div>
+
+  <p class="text-center text-muted mb-4">
+    정보를 입력하시면 이메일 인증 후<br>
+    사용 가능한 시간대를 선택하실 수 있습니다.
+  </p>
+
+  {% if error %}
+    <div class="alert alert-danger">{{ error }}</div>
+  {% endif %}
+
+  <form method="post">
+    <div class="mb-3">
+      <label class="form-label">이름 *</label>
+      <input type="text" name="name" class="form-control" placeholder="홍길동" required>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">이메일 *</label>
+      <input type="email" name="email" class="form-control" placeholder="example@email.com" required>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">전화번호 *</label>
+      <input type="text" name="phone" class="form-control" placeholder="010-1234-5678" required>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">대화하고 싶은 주제 *</label>
+      <textarea name="purpose" class="form-control" rows="4" placeholder="어떤 이야기를 나누고 싶으신가요?" required></textarea>
+    </div>
+
+    <button type="submit" class="btn coffee-btn w-100">다음 단계 (이메일 인증)</button>
+  </form>
+
+  <div class="text-center mt-3">
+    <a href="/" class="text-muted">홈으로 돌아가기</a>
+  </div>
+</div>
+{% endblock %}
+
+{% block script %}
+<style>
+  body {
+    background-color: #f3ede7;
+    font-family: 'Inter', sans-serif;
+    color: #5e4634;
+  }
+
+  .coffee-card {
+    background-color: #fffdfc;
+    border-radius: 1rem;
+    max-width: 600px;
+    margin: 2rem auto;
+  }
+
+  .coffee-btn {
+    background-color: #6b4c3b;
+    color: white;
+    border: 1px solid #6b4c3b;
+    transition: all 0.2s ease-in-out;
+  }
+
+  .coffee-btn:hover {
+    background-color: #f3ede7;
+    color: #6b4c3b;
+    border: 1px solid #6b4c3b;
+  }
+
+  .form-control:focus {
+    border-color: #c5a990;
+    box-shadow: 0 0 0 0.2rem rgba(197, 169, 144, 0.25);
+  }
+
+  textarea.form-control {
+    resize: vertical;
+  }
+
+  #timer-alert.expired {
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+    color: #721c24;
+  }
+</style>
+
+<script>
+// 카운트다운 타이머
+const expiresAt = new Date("{{ expires_at }}");
+
+function updateCountdown() {
+  const now = new Date();
+  const diff = expiresAt - now;
+
+  if (diff <= 0) {
+    document.getElementById('countdown').textContent = '만료됨';
+    document.getElementById('timer-alert').classList.add('expired');
+    document.querySelector('button[type="submit"]').disabled = true;
+
+    // 3초 후 페이지 새로고침 (만료 메시지 표시)
+    setTimeout(() => {
+      window.location.reload();
+    }, 3000);
+    return;
+  }
+
+  const minutes = Math.floor(diff / 60000);
+  const seconds = Math.floor((diff % 60000) / 1000);
+
+  document.getElementById('countdown').textContent =
+    `${minutes}분 ${seconds}초`;
+
+  // 1분 미만 시 빨간색
+  if (minutes < 1) {
+    document.getElementById('timer-alert').classList.add('expired');
+  }
+}
+
+// 초기 실행 및 1초마다 업데이트
+updateCountdown();
+setInterval(updateCountdown, 1000);
+</script>
+{% endblock %}

@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}프라이빗 커피챗 - Waitlist{% endblock %}
+
+{% block content %}
+<h2 class="text-center mb-3">☕ 프라이빗 커피챗</h2>
+<p class="text-center text-muted mb-4">
+  이메일과 전화번호를 입력하시면,<br>
+  승인 후 예약 가능한 링크를 보내드립니다.
+</p>
+
+<!-- Waitlist 등록 -->
+<div class="card p-4 shadow-sm mb-4 border-0 coffee-card">
+  <h5 class="mb-3">📝 대기 명단 등록</h5>
+  {% if error %}
+    <div class="alert alert-danger">{{ error }}</div>
+  {% endif %}
+  <form method="post" action="/waitlist/submit">
+    <div class="mb-3">
+      <input type="text" name="name" class="form-control" placeholder="이름을 입력하세요" required>
+    </div>
+    <div class="mb-3">
+      <input type="email" name="email" class="form-control" placeholder="이메일을 입력하세요" required>
+    </div>
+    <div class="mb-3">
+      <input type="text" name="phone" class="form-control" placeholder="전화번호를 입력하세요 (예: 010-1234-5678)" required>
+    </div>
+    <div class="mb-3">
+      <textarea name="purpose" class="form-control" rows="3" placeholder="대화하고 싶은 주제를 입력하세요" required></textarea>
+    </div>
+    <button class="btn coffee-btn w-100">등록하기</button>
+  </form>
+</div>
+
+<!-- 내 정보 수정 -->
+<div class="card p-4 shadow-sm border-0 coffee-card mb-4">
+  <h5 class="mb-3">✏️ 내 정보 수정</h5>
+  <p class="text-muted small mb-3">대기 중 상태일 때만 정보를 수정할 수 있습니다.</p>
+  <form method="post" action="/edit-info-request">
+    <div class="mb-3">
+      <input type="email" name="email" class="form-control" placeholder="이메일을 입력하세요" required>
+    </div>
+    <button class="btn coffee-outline-btn w-100">수정하기</button>
+  </form>
+</div>
+
+<!-- 예약 상태 확인 -->
+<div class="card p-4 shadow-sm border-0 coffee-card">
+  <h5 class="mb-3">📱 예약 상태 확인</h5>
+  <form method="post" action="/status">
+    <div class="mb-3">
+      <input type="text" name="phone" class="form-control" placeholder="전화번호를 입력하세요" required>
+    </div>
+    <button class="btn btn-outline-secondary coffee-outline-btn w-100">예약 상태 확인</button>
+  </form>
+</div>
+{% endblock %}
+
+{% block script %}
+<style>
+  body {
+    background-color: #f3ede7;
+    font-family: 'Inter', sans-serif;
+    color: #5e4634;
+  }
+
+  .coffee-card {
+    background-color: #fffdfc;
+    border-radius: 1rem;
+    border: none;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+
+  .coffee-btn,
+  .coffee-outline-btn {
+    background-color: #6b4c3b;
+    color: white;
+    border: 1px solid #6b4c3b;
+    box-sizing: border-box;
+    transition: all 0.2s ease-in-out;
+  }
+
+  .coffee-btn:hover,
+  .coffee-outline-btn:hover {
+    background-color: #f3ede7;
+    color: #6b4c3b;
+    border: 1px solid #6b4c3b;
+  }
+
+  .form-control:focus {
+    border-color: #c5a990;
+    box-shadow: 0 0 0 0.2rem rgba(197, 169, 144, 0.25);
+  }
+</style>
+{% endblock %}

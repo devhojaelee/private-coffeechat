@@ -16,7 +16,7 @@ load_dotenv(dotenv_path=env_file)
 def send_reminder_email(to_email, name, meet_time, meet_link):
     msg = EmailMessage()
     msg["Subject"] = f"[Reminder] {name}님, 곧 미팅이 시작됩니다!"
-    msg["From"] = os.getenv("GMAIL_ADDRESS")
+    msg["From"] = os.getenv("NAVER_ADDRESS")
     msg["To"] = to_email
 
     msg.set_content(f"""안녕하세요 {name}님,
@@ -28,8 +28,8 @@ def send_reminder_email(to_email, name, meet_time, meet_link):
 
 """)
 
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-        server.login(os.getenv("GMAIL_ADDRESS"), os.getenv("GMAIL_APP_PASSWORD"))
+    with smtplib.SMTP_SSL("smtp.naver.com", 465) as server:
+        server.login(os.getenv("NAVER_ADDRESS"), os.getenv("NAVER_APP_PASSWORD"))
         server.send_message(msg)
 
 def send_reminders():

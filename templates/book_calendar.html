@@ -1,0 +1,301 @@
+{% extends "base.html" %}
+
+{% block title %}시간 선택 - {{ link_name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+  <h2 class="text-center mb-3">📅 {{ link_name }}</h2>
+
+  <!-- 🆕 카운트다운 타이머 -->
+  <div class="alert alert-warning text-center mb-4" id="timer-alert">
+    <strong>⏰ 남은 시간: <span id="countdown">계산 중...</span></strong>
+  </div>
+
+  <p class="text-center text-muted mb-4">
+    <strong>{{ booking.name }}</strong>님,<br>
+    원하시는 시간대를 선택해주세요.
+  </p>
+
+  {% if error %}
+    <div class="alert alert-danger">{{ error }}</div>
+  {% endif %}
+
+  <!-- 캘린더 UI -->
+  <div class="card p-4 shadow-sm border-0 coffee-card mb-4">
+    <div id="calendar-container">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <button id="prev-month" class="btn btn-outline-secondary">◀ 이전</button>
+        <h5 id="current-month" class="mb-0"></h5>
+        <button id="next-month" class="btn btn-outline-secondary">다음 ▶</button>
+      </div>
+      <div id="calendar-grid"></div>
+    </div>
+
+    <!-- 선택된 시간대 표시 -->
+    <div id="selected-slots" class="mt-4">
+      <h6>선택된 시간:</h6>
+      <div id="slot-list" class="text-muted">시간을 선택해주세요.</div>
+    </div>
+
+    <!-- 예약 제출 -->
+    <form method="post" id="booking-form">
+      <input type="hidden" name="selected_slot" id="selected-slot-input">
+      <button type="submit" class="btn coffee-btn w-100 mt-3" disabled id="submit-btn">
+        예약 확정
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block script %}
+<style>
+  body {
+    background-color: #f3ede7;
+    font-family: 'Inter', sans-serif;
+    color: #5e4634;
+  }
+
+  .coffee-card {
+    background-color: #fffdfc;
+    border-radius: 1rem;
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  .coffee-btn {
+    background-color: #6b4c3b;
+    color: white;
+    border: 1px solid #6b4c3b;
+    transition: all 0.2s ease-in-out;
+  }
+
+  .coffee-btn:hover:not(:disabled) {
+    background-color: #f3ede7;
+    color: #6b4c3b;
+    border: 1px solid #6b4c3b;
+  }
+
+  .coffee-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  #calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 5px;
+  }
+
+  .calendar-day {
+    padding: 10px;
+    text-align: center;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .calendar-day.header {
+    font-weight: bold;
+    background-color: #6b4c3b;
+    color: white;
+    cursor: default;
+  }
+
+  .calendar-day.disabled {
+    background-color: #f5f5f5;
+    color: #ccc;
+    cursor: not-allowed;
+  }
+
+  .calendar-day.available:hover {
+    background-color: #c5a990;
+    color: white;
+  }
+
+  .calendar-day.selected {
+    background-color: #6b4c3b;
+    color: white;
+  }
+
+  .time-slot {
+    display: inline-block;
+    padding: 8px 15px;
+    margin: 5px;
+    border: 1px solid #6b4c3b;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .time-slot:hover {
+    background-color: #c5a990;
+    color: white;
+  }
+
+  .time-slot.selected {
+    background-color: #6b4c3b;
+    color: white;
+  }
+
+  .time-slot.busy {
+    background-color: #f5f5f5;
+    color: #ccc;
+    cursor: not-allowed;
+    border-color: #ddd;
+  }
+
+  #timer-alert.expired {
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+    color: #721c24;
+  }
+</style>
+
+<script>
+// 🆕 카운트다운 타이머
+const expiresAt = new Date("{{ expires_at }}");
+
+function updateCountdown() {
+  const now = new Date();
+  const diff = expiresAt - now;
+
+  if (diff <= 0) {
+    document.getElementById('countdown').textContent = '만료됨';
+    document.getElementById('timer-alert').classList.add('expired');
+    document.getElementById('submit-btn').disabled = true;
+
+    // 3초 후 페이지 새로고침
+    setTimeout(() => {
+      window.location.href = '/book/{{ token }}';
+    }, 3000);
+    return;
+  }
+
+  const minutes = Math.floor(diff / 60000);
+  const seconds = Math.floor((diff % 60000) / 1000);
+
+  document.getElementById('countdown').textContent =
+    `${minutes}분 ${seconds}초`;
+
+  // 1분 미만 시 빨간색
+  if (minutes < 1) {
+    document.getElementById('timer-alert').classList.add('expired');
+  }
+}
+
+updateCountdown();
+setInterval(updateCountdown, 1000);
+
+// 캘린더 로직
+let currentDate = new Date();
+let selectedSlot = null;
+
+// 캘린더 렌더링
+function renderCalendar() {
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+
+  document.getElementById('current-month').textContent =
+    `${year}년 ${month + 1}월`;
+
+  const firstDay = new Date(year, month, 1).getDay();
+  const lastDate = new Date(year, month + 1, 0).getDate();
+
+  const grid = document.getElementById('calendar-grid');
+  grid.innerHTML = '';
+
+  // 요일 헤더
+  ['일', '월', '화', '수', '목', '금', '토'].forEach(day => {
+    const header = document.createElement('div');
+    header.className = 'calendar-day header';
+    header.textContent = day;
+    grid.appendChild(header);
+  });
+
+  // 빈 칸
+  for (let i = 0; i < firstDay; i++) {
+    const empty = document.createElement('div');
+    empty.className = 'calendar-day disabled';
+    grid.appendChild(empty);
+  }
+
+  // 날짜
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  for (let date = 1; date <= lastDate; date++) {
+    const dayDiv = document.createElement('div');
+    const currentDay = new Date(year, month, date);
+
+    if (currentDay < today) {
+      dayDiv.className = 'calendar-day disabled';
+    } else {
+      dayDiv.className = 'calendar-day available';
+      dayDiv.onclick = () => showTimeSlots(year, month, date);
+    }
+
+    dayDiv.textContent = date;
+    grid.appendChild(dayDiv);
+  }
+}
+
+// 시간대 선택 표시
+function showTimeSlots(year, month, date) {
+  const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
+
+  // 구글 캘린더에서 사용 가능한 시간 조회 (향후 구현)
+  // 지금은 10:00-18:00 30분 단위로 표시
+  const slots = [];
+  for (let hour = 10; hour < 18; hour++) {
+    slots.push(`${String(hour).padStart(2, '0')}:00`);
+    slots.push(`${String(hour).padStart(2, '0')}:30`);
+  }
+
+  const slotList = document.getElementById('slot-list');
+  slotList.innerHTML = `<strong>${dateStr}</strong><br>`;
+
+  slots.forEach(time => {
+    const slotDiv = document.createElement('span');
+    slotDiv.className = 'time-slot';
+    slotDiv.textContent = time;
+    slotDiv.onclick = () => selectSlot(`${dateStr} ${time}`);
+    slotList.appendChild(slotDiv);
+  });
+}
+
+// 슬롯 선택
+function selectSlot(slot) {
+  selectedSlot = slot;
+
+  // 모든 슬롯의 선택 해제
+  document.querySelectorAll('.time-slot').forEach(el => {
+    el.classList.remove('selected');
+  });
+
+  // 현재 슬롯 선택
+  event.target.classList.add('selected');
+
+  // hidden input 업데이트
+  document.getElementById('selected-slot-input').value = slot;
+
+  // 제출 버튼 활성화
+  document.getElementById('submit-btn').disabled = false;
+}
+
+// 이전/다음 달 버튼
+document.getElementById('prev-month').onclick = () => {
+  currentDate.setMonth(currentDate.getMonth() - 1);
+  renderCalendar();
+};
+
+document.getElementById('next-month').onclick = () => {
+  currentDate.setMonth(currentDate.getMonth() + 1);
+  renderCalendar();
+};
+
+// 초기 렌더링
+renderCalendar();
+</script>
+{% endblock %}

@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}오류{% endblock %}
+
+{% block content %}
+<div class="card p-5 shadow-sm border-0 error-card">
+  <div class="text-center">
+    <div class="error-icon mb-4">⚠️</div>
+    <h2 class="mb-3">오류</h2>
+    <p class="text-danger mb-4">
+      {{ message }}
+    </p>
+
+    <a href="/" class="btn coffee-btn w-100">홈으로 돌아가기</a>
+  </div>
+</div>
+{% endblock %}
+
+{% block script %}
+<style>
+  body {
+    background-color: #f3ede7;
+    font-family: 'Inter', sans-serif;
+    color: #5e4634;
+  }
+
+  .error-card {
+    background-color: #fffdfc;
+    border-radius: 1rem;
+    max-width: 500px;
+    margin: 2rem auto;
+  }
+
+  .error-icon {
+    font-size: 4rem;
+  }
+
+  .coffee-btn {
+    background-color: #6b4c3b;
+    color: white;
+    border: 1px solid #6b4c3b;
+    transition: all 0.2s ease-in-out;
+  }
+
+  .coffee-btn:hover {
+    background-color: #f3ede7;
+    color: #6b4c3b;
+    border: 1px solid #6b4c3b;
+  }
+</style>
+{% endblock %}

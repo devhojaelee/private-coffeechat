@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}수정 완료{% endblock %}
+
+{% block content %}
+<div class="card p-5 shadow-sm border-0 coffee-card">
+  <div class="text-center">
+    <div class="success-icon mb-4">✅</div>
+    <h2 class="mb-3">정보 수정 완료!</h2>
+    <p class="text-muted mb-4">
+      등록하신 정보가 성공적으로 수정되었습니다.<br>
+      관리자 승인을 기다려주세요.
+    </p>
+
+    <div class="alert alert-info">
+      <strong>📧 다음 단계</strong><br>
+      관리자가 승인하면 이메일로 캘린더 링크를 보내드립니다.<br>
+      링크를 통해 원하시는 시간대를 선택해주세요.
+    </div>
+
+    <a href="/" class="btn coffee-btn w-100 mt-3">홈으로 돌아가기</a>
+  </div>
+</div>
+{% endblock %}
+
+{% block script %}
+<style>
+  body {
+    background-color: #f3ede7;
+    font-family: 'Inter', sans-serif;
+    color: #5e4634;
+  }
+
+  .coffee-card {
+    background-color: #fffdfc;
+    border-radius: 1rem;
+    max-width: 500px;
+    margin: 2rem auto;
+  }
+
+  .success-icon {
+    font-size: 4rem;
+    animation: bounce 1s ease;
+  }
+
+  @keyframes bounce {
+    0%, 20%, 50%, 80%, 100% {
+      transform: translateY(0);
+    }
+    40% {
+      transform: translateY(-20px);
+    }
+    60% {
+      transform: translateY(-10px);
+    }
+  }
+
+  .coffee-btn {
+    background-color: #6b4c3b;
+    color: white;
+    border: 1px solid #6b4c3b;
+    transition: all 0.2s ease-in-out;
+  }
+
+  .coffee-btn:hover {
+    background-color: #f3ede7;
+    color: #6b4c3b;
+    border: 1px solid #6b4c3b;
+  }
+
+  .alert-info {
+    background-color: #e8f4f8;
+    border-color: #b3d9e6;
+    color: #31708f;
+  }
+</style>
+{% endblock %}

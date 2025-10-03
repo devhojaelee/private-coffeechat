@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}등록 완료{% endblock %}
+
+{% block content %}
+<div class="card p-5 shadow-sm border-0 coffee-card text-center">
+  <h2 class="mb-4">✅ 대기 명단 등록 완료</h2>
+  <p class="lead mb-3">
+    <strong>{{ email }}</strong> 으로 등록되었습니다.
+  </p>
+  <p class="text-muted mb-4">
+    관리자 승인 후, 이메일로 예약 가능한 링크를 보내드립니다.<br>
+    조금만 기다려주세요! ☕
+  </p>
+  <a href="/" class="btn coffee-btn">홈으로 돌아가기</a>
+</div>
+{% endblock %}
+
+{% block script %}
+<style>
+  body {
+    background-color: #f3ede7;
+    font-family: 'Inter', sans-serif;
+    color: #5e4634;
+  }
+
+  .coffee-card {
+    background-color: #fffdfc;
+    border-radius: 1rem;
+    border: none;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+
+  .coffee-btn {
+    background-color: #6b4c3b;
+    color: white;
+    border: 1px solid #6b4c3b;
+    transition: all 0.2s ease-in-out;
+  }
+
+  .coffee-btn:hover {
+    background-color: #f3ede7;
+    color: #6b4c3b;
+    border: 1px solid #6b4c3b;
+  }
+</style>
+{% endblock %}
