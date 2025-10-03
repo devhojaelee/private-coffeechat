@@ -64,4 +64,43 @@ def create_meet_event(token_path, calendar_id, summary, start_time, duration_min
             }
         ).execute()
 
-    return meet_link
+    return meet_link, created_event['id']
+
+def delete_calendar_event(token_path, calendar_id, event_id):
+    """
+    Delete a Google Calendar event.
+
+    Args:
+        token_path: Path to token.json file
+        calendar_id: Google Calendar ID
+        event_id: Event ID to delete
+
+    Returns:
+        True if successful, False otherwise
+    """
+    try:
+        if not os.path.exists(token_path):
+            print(f"⚠️ token.json not found at {token_path}")
+            return False
+
+        creds = Credentials.from_authorized_user_file(token_path)
+
+        # Check if token needs refresh
+        if creds.expired and creds.refresh_token:
+            from app import refresh_access_token
+            creds = refresh_access_token(creds)
+
+        service = build("calendar", "v3", credentials=creds)
+
+        # Delete the event
+        service.events().delete(
+            calendarId=calendar_id,
+            eventId=event_id
+        ).execute()
+
+        print(f"✅ Calendar event {event_id} deleted successfully")
+        return True
+
+    except Exception as e:
+        print(f"⚠️ Failed to delete calendar event {event_id}: {e}")
+        return False

@@ -221,6 +221,7 @@ def init_db():
                 selected_slot TEXT,
                 status TEXT DEFAULT 'pending',
                 meet_link TEXT,
+                event_id TEXT,
                 cancel_token TEXT UNIQUE,
                 created_at TEXT,
                 confirmed_at TEXT,
@@ -303,6 +304,12 @@ def init_db():
 
         try:
             c.execute("ALTER TABLE waitlist ADD COLUMN email_verified INTEGER DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass
+
+        # Bookings 테이블에 event_id 컬럼 추가 (기존 DB 호환)
+        try:
+            c.execute("ALTER TABLE bookings ADD COLUMN event_id TEXT")
         except sqlite3.OperationalError:
             pass
 
@@ -737,8 +744,8 @@ def cancel_booking(cancel_token):
         # Google Calendar 이벤트 삭제 (event_id가 있는 경우)
         if event_id:
             try:
-                from calendar_utils import delete_event
-                delete_event(TOKEN_PATH, "yslhj93@gmail.com", event_id)
+                from calendar_utils import delete_calendar_event
+                delete_calendar_event(TOKEN_PATH, "yslhj93@gmail.com", event_id)
                 print(f"✅ Google Calendar 이벤트 삭제 완료: {event_id}")
             except Exception as e:
                 print(f"⚠️ Google Calendar 이벤트 삭제 실패: {e}")
@@ -923,7 +930,7 @@ def admin():
                     c = conn.cursor()
                     c.execute(
                         """
-                        SELECT name, email, selected_slot
+                        SELECT name, email, selected_slot, cancel_token
                         FROM bookings
                         WHERE id = ?
                         """,
@@ -933,7 +940,7 @@ def admin():
                     print(f"🔍 DB 조회 결과: {row}")
 
                     if row:
-                        name, email, selected_slot = row
+                        name, email, selected_slot, cancel_token = row
                         print(f"🔍 selected_slot 원본: {selected_slot} (type: {type(selected_slot)})")
 
                         # Google Meet 이벤트 생성
@@ -952,26 +959,29 @@ def admin():
                                 return f"날짜 형식 오류: {selected_slot}", 500
 
                         print(f"🔍 Google Meet 이벤트 생성 시작...")
-                        meet_link = create_meet_event(
+                        meet_link, event_id = create_meet_event(
                             TOKEN_PATH,
                             "yslhj93@gmail.com",
                             f"{name}님과의 미팅",
                             slot_dt,
                             30  # 30분
                         )
-                        print(f"✅ Meet 링크 생성 성공: {meet_link}")
+                        print(f"✅ Meet 링크 생성 성공: {meet_link}, event_id: {event_id}")
 
                         # bookings 업데이트
                         c.execute(
                             """
                             UPDATE bookings
-                            SET status = 'confirmed', meet_link = ?, confirmed_at = ?
+                            SET status = 'confirmed', meet_link = ?, event_id = ?, confirmed_at = ?
                             WHERE id = ?
                             """,
-                            (meet_link, datetime.now(), booking_id)
+                            (meet_link, event_id, datetime.now(), booking_id)
                         )
                         conn.commit()
                         print(f"✅ DB 업데이트 완료")
+
+                        # 예약 관리 URL 생성
+                        manage_url = f"{request.host_url}manage/{cancel_token}"
 
                         # 이메일 발송
                         print(f"📧 이메일 발송 시작...")
@@ -980,6 +990,7 @@ def admin():
                             name,
                             selected_slot,
                             meet_link,
+                            manage_url=manage_url,
                             admin_notice=False
                         )
                         print(f"✅ 이메일 발송 완료")
