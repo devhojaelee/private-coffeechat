@@ -734,23 +734,23 @@ def admin():
                                 return f"날짜 형식 오류: {selected_slot}", 500
 
                         print(f"🔍 Google Meet 이벤트 생성 시작...")
-                        meet_link = create_meet_event(
+                        meet_link, event_id = create_meet_event(
                             TOKEN_PATH,
                             "yslhj93@gmail.com",
                             f"{name}님과의 미팅",
                             slot_dt,
                             30  # 30분
                         )
-                        print(f"✅ Meet 링크 생성 성공: {meet_link}")
+                        print(f"✅ Meet 링크 생성 성공: {meet_link}, event_id: {event_id}")
 
                         # bookings 업데이트
                         c.execute(
                             """
                             UPDATE bookings
-                            SET status = 'confirmed', meet_link = ?, confirmed_at = ?
+                            SET status = 'confirmed', meet_link = ?, event_id = ?, confirmed_at = ?
                             WHERE id = ?
                             """,
-                            (meet_link, datetime.now(), booking_id)
+                            (meet_link, event_id, datetime.now(), booking_id)
                         )
                         conn.commit()
                         print(f"✅ DB 업데이트 완료")
@@ -850,7 +850,7 @@ def admin():
                     duration_minutes = 30  # 기본 미팅 시간 30분
 
                     # ✅ 미팅 생성
-                    meet_link = create_meet_event(
+                    meet_link, event_id = create_meet_event(
                         TOKEN_PATH,
                         "yslhj93@gmail.com",
                         f"{name}님과의 미팅",
