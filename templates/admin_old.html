@@ -1,0 +1,413 @@
+{% extends "base.html" %}
+
+{% block title %}관리자 페이지 | 커피챗{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2>🔧 관리자 페이지</h2>
+  <form method="post" action="{{ url_for('admin_logout') }}" onsubmit="return confirmLogout();">
+    <button type="submit" class="btn btn-outline-danger btn-sm">🚪 로그아웃</button>
+  </form>
+</div>
+
+<!-- 🆕 예약 링크 관리 섹션 -->
+<h3 class="mb-3">🔗 예약 링크 관리</h3>
+
+<!-- 새 링크 생성 폼 -->
+<div class="card mb-4">
+  <div class="card-body">
+    <h5 class="card-title">새 예약 링크 생성 (개인별 1회용)</h5>
+    <p class="text-muted small">
+      링크는 관리자가 직접 공유하며, 미확인 시 7일간 유효합니다.<br>
+      링크 첫 클릭 시 30분 타이머가 시작되며, 예약 완료 시 자동 만료됩니다.
+    </p>
+    <form method="post">
+      <div class="row g-3 align-items-end">
+        <div class="col-md-8">
+          <label class="form-label">링크 이름/설명</label>
+          <input type="text" name="link_name" class="form-control" placeholder="홍길동님 커피챗" required>
+        </div>
+        <div class="col-md-4">
+          <button type="submit" name="create_booking_link" value="1" class="btn btn-primary w-100">
+            ➕ 링크 생성
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- 기존 링크 목록 -->
+{% if booking_links %}
+<div class="table-responsive mb-5">
+  <table class="table table-hover table-sm">
+    <thead class="table-dark">
+      <tr>
+        <th>ID</th>
+        <th>링크 이름</th>
+        <th>URL</th>
+        <th>생성일</th>
+        <th>첫 접속</th>
+        <th>만료시각</th>
+        <th>상태</th>
+        <th>관리</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for link in booking_links %}
+      <tr>
+        <td>{{ link[0] }}</td>
+        <td>{{ link[2] }}</td>
+        <td>
+          <code class="small">{{ host_url }}book/{{ link[1] }}</code>
+          <button class="btn btn-sm btn-outline-secondary" onclick="copyToClipboard('{{ host_url }}book/{{ link[1] }}')">📋</button>
+        </td>
+        <td class="small">{{ link[3][:16] if link[3] else '-' }}</td>
+        <td class="small">{{ link[4][:16] if link[4] else '미접속' }}</td>
+        <td class="small">{{ link[5][:16] if link[5] else '미설정' }}</td>
+        <td>
+          {% if link[6] == 1 %}
+            <span class="badge bg-success">사용완료</span>
+          {% elif link[7] == 0 %}
+            <span class="badge bg-secondary">비활성</span>
+          {% elif link[5] and link[5] < now %}
+            <span class="badge bg-danger">만료</span>
+          {% elif link[4] %}
+            <span class="badge bg-warning">진행중</span>
+          {% else %}
+            <span class="badge bg-info">미사용</span>
+          {% endif %}
+        </td>
+        <td>
+          <form method="post" style="display: inline;">
+            {% if link[7] == 1 and link[6] == 0 %}
+              <button type="submit" name="deactivate_link_id" value="{{ link[0] }}" class="btn btn-sm btn-warning btn-xs">비활성화</button>
+            {% elif link[7] == 0 %}
+              <button type="submit" name="activate_link_id" value="{{ link[0] }}" class="btn btn-sm btn-success btn-xs">활성화</button>
+            {% endif %}
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<p class="text-muted">생성된 예약 링크가 없습니다.</p>
+{% endif %}
+
+<hr class="my-5">
+
+<!-- 🆕 예약 목록 섹션 -->
+<h3 class="mb-3">📅 예약 목록 (신규 시스템)</h3>
+{% if bookings %}
+<div class="table-responsive mb-5">
+  <table class="table table-hover">
+    <thead class="table-primary">
+      <tr>
+        <th>ID</th>
+        <th>이름</th>
+        <th>이메일</th>
+        <th>전화번호</th>
+        <th>용건</th>
+        <th>선택 시간</th>
+        <th>링크</th>
+        <th>상태</th>
+        <th>승인</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for booking in bookings %}
+      <tr>
+        <td>{{ booking[0] }}</td>
+        <td>{{ booking[1] }}</td>
+        <td>{{ booking[2] }}</td>
+        <td>{{ booking[3] }}</td>
+        <td>{{ booking[4][:30] }}...</td>
+        <td><strong>{{ booking[5] }}</strong></td>
+        <td><span class="badge bg-info">{{ booking[9] }}</span></td>
+        <td>
+          {% if booking[6] == 'confirmed' %}
+            <span class="badge bg-success">확정</span>
+          {% elif booking[6] == 'cancelled' %}
+            <span class="badge bg-danger">취소됨</span>
+          {% else %}
+            <span class="badge bg-secondary">대기 중</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if booking[6] == 'pending' %}
+            <form method="post" style="display: inline;">
+              <button type="submit" name="approve_booking_id" value="{{ booking[0] }}" class="btn btn-sm btn-success">승인</button>
+            </form>
+          {% elif booking[6] == 'confirmed' and booking[7] %}
+            <a href="{{ booking[7] }}" target="_blank" class="btn btn-sm btn-primary">Meet 링크</a>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<p class="text-muted">예약 내역이 없습니다.</p>
+{% endif %}
+
+<hr class="my-5">
+
+<!-- Waitlist 섹션 -->
+<h3 class="mb-3">📝 대기 명단</h3>
+{% if waitlist %}
+{% for w in waitlist %}
+<div class="waitlist-card">
+  <table class="table table-bordered text-center mb-2">
+    <thead class="table-info">
+      <tr>
+        <th>ID</th><th>이름</th><th>이메일</th><th>전화번호</th><th>상태</th><th>등록일</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>{{ w[0] }}</td>
+        <td>{{ w[1] }}</td>
+        <td>{{ w[2] }}</td>
+        <td>{{ w[3] }}</td>
+        <td>
+          {% if w[5] == 'approved' %}
+            <span class="badge bg-success">승인됨</span>
+          {% elif w[5] == 'rejected' %}
+            <span class="badge bg-danger">거절됨</span>
+          {% else %}
+            <span class="badge bg-secondary">대기 중</span>
+          {% endif %}
+        </td>
+        <td>{{ w[6] }}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- 용건 표시 -->
+  <table class="table table-sm table-bordered mb-2">
+    <thead class="table-light">
+      <tr><th>대화하고 싶은 주제</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>{{ w[4] }}</td></tr>
+    </tbody>
+  </table>
+
+  {% if w[5] == 'pending' %}
+  <div class="action-buttons">
+    <form method="post" onsubmit="return confirm('승인하시겠습니까? 이메일로 캘린더 링크가 전송됩니다.');">
+      <input type="hidden" name="approve_waitlist_id" value="{{ w[0] }}">
+      <button type="submit" class="btn btn-sm btn-success">승인</button>
+    </form>
+    <form method="post" onsubmit="return confirm('거절하시겠습니까?');">
+      <input type="hidden" name="reject_waitlist_id" value="{{ w[0] }}">
+      <button type="submit" class="btn btn-sm btn-warning">거절</button>
+    </form>
+  </div>
+  {% endif %}
+</div>
+{% endfor %}
+{% else %}
+<p class="text-muted">대기 중인 사람이 없습니다.</p>
+{% endif %}
+
+<hr class="my-5">
+
+<!-- 예약 신청 목록 섹션 -->
+<h3 class="mb-3">📋 예약 신청 목록</h3>
+
+{% for r in reservations %}
+<div class="reservation-card">
+  <!-- 기본 정보 테이블 (PC용) -->
+  <table class="table table-bordered text-center mb-2 align-middle d-none d-sm-table">
+    <thead class="table-dark">
+      <tr>
+        <th>ID</th><th>이름</th><th>이메일</th><th>전화번호</th><th>상태</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>{{ r[0] }}</td>
+        <td class="text-nowrap">{{ r[2] }}</td>
+        <td class="text-nowrap">{{ r[3] }}</td>
+        <td class="text-nowrap">{{ r[4] }}</td>
+        <td class="text-nowrap">
+          {% if r[9] == "승인됨" %}
+            <span class="badge bg-success">승인됨<br><small>{{ r[8] }}</small></span>
+          {% elif r[9] == "거절됨" %}
+            <span class="badge bg-danger">거절됨</span>
+          {% else %}
+            <span class="badge bg-secondary">대기 중</span>
+          {% endif %}
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- 모바일용 기본 정보 분할 테이블 -->
+  <table class="table table-bordered text-center mb-2 align-middle d-sm-none">
+    <thead class="table-dark">
+      <tr><th>ID</th><th>이름</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>{{ r[0] }}</td>
+        <td class="text-nowrap">{{ r[2] }}</td>
+      </tr>
+    </tbody>
+  </table>
+  <table class="table table-bordered text-center mb-2 align-middle d-sm-none">
+    <thead class="table-dark">
+      <tr><th>이메일</th><th>전화번호</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="text-nowrap">{{ r[3] }}</td>
+        <td class="text-nowrap">{{ r[4] }}</td>
+      </tr>
+    </tbody>
+  </table>
+  <table class="table table-bordered text-center mb-2 align-middle d-sm-none">
+    <thead class="table-dark">
+      <tr><th>상태</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="text-nowrap">
+          {% if r[9] == "승인됨" %}
+            <span class="badge bg-success">승인됨<br><small>{{ r[8] }}</small></span>
+          {% elif r[9] == "거절됨" %}
+            <span class="badge bg-danger">거절됨</span>
+          {% else %}
+            <span class="badge bg-secondary">대기 중</span>
+          {% endif %}
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- 예약 시간 테이블 -->
+  <table class="table table-sm table-bordered mb-2">
+    <thead class="table-light">
+      <tr><th>예약 시간</th></tr>
+    </thead>
+    <tbody>
+      {% for slot in r[6] %}
+      <tr><td class="text-nowrap">{{ loop.index }}️⃣ {{ slot }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% set start_time = r[6]|sort|first %}
+  {% set end_time = r[6]|sort|last %}
+  {% set start_hour = start_time[11:13]|int %}
+  {% set start_minute = start_time[14:16]|int %}
+  {% set end_hour = end_time[11:13]|int %}
+  {% set end_minute = end_time[14:16]|int + 30 %}
+  {% if end_minute >= 60 %}
+    {% set end_hour = end_hour + 1 %}
+    {% set end_minute = end_minute - 60 %}
+  {% endif %}
+  {% set slot_count = r[6]|length %}
+  {% set total_minutes = slot_count * 30 %}
+  {% set total_hours = total_minutes // 60 %}
+  {% set remain_minutes = total_minutes % 60 %}
+
+  <p class="text-end text-muted small">
+    {{ '%02d:%02d' % (start_hour, start_minute) }} ~ {{ '%02d:%02d' % (end_hour, end_minute) }} (총
+    {% if total_hours > 0 %}{{ total_hours }}시간 {% endif %}
+    {% if remain_minutes > 0 or total_hours == 0 %}{{ remain_minutes }}분{% endif %})
+  </p>
+
+  <!-- 대화하고 싶은 주제 테이블 -->
+  <table class="table table-sm table-bordered mb-3">
+    <thead class="table-light">
+      <tr><th>대화하고 싶은 주제</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>{{ r[5] }}</td></tr>
+    </tbody>
+  </table>
+
+  <!-- 관리 및 삭제 버튼 -->
+  <div class="action-buttons">
+    {% if r[9] != "승인됨" %}
+    <form method="post" onsubmit="return confirm('정말로 이 예약을 승인하시겠습니까? Meet 링크가 생성되고 이메일이 발송됩니다.');">
+      <input type="hidden" name="approve_id" value="{{ r[0] }}">
+      <button type="submit" class="btn btn-sm btn-success">Meet 링크 생성 및 승인</button>
+    </form>
+    {% endif %}
+    <form method="post" onsubmit="return confirm('정말로 이 예약을 거절하시겠습니까?');">
+      <input type="hidden" name="reject_id" value="{{ r[0] }}">
+      <button type="submit" class="btn btn-sm btn-warning">거절</button>
+    </form>
+    <form method="post" onsubmit="return confirm('정말로 이 예약을 삭제하시겠습니까? 삭제하면 되돌릴 수 없습니다.');">
+      <input type="hidden" name="remove_id" value="{{ r[0] }}">
+      <button type="submit" class="btn btn-sm btn-danger">삭제</button>
+    </form>
+  </div>
+</div>
+{% endfor %}
+
+<a href="/" class="btn btn-secondary mt-4">홈으로</a>
+{% endblock %}
+
+{% block script %}
+<style>
+  .waitlist-card {
+    border: 2px solid #cfe2ff;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    background-color: #f8f9fa;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+  }
+  .reservation-card {
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    background-color: #fff;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+  }
+  .action-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: center;
+  }
+  @media (max-width: 576px) {
+    .table th, .table td {
+      font-size: 0.85rem;
+      padding: 0.3rem;
+    }
+    .reservation-card, .waitlist-card {
+      padding: 1rem;
+    }
+  }
+</style>
+
+<script>
+function confirmLogout() {
+    return confirm("정말 로그아웃하시겠습니까?");
+  }
+
+  // 🆕 클립보드 복사 함수
+  function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(function() {
+      alert('링크가 클립보드에 복사되었습니다: ' + text);
+    }, function(err) {
+      alert('복사 실패: ' + err);
+    });
+  }
+
+  // ✅ 10분 후 자동 로그아웃 (index로 이동)
+  setTimeout(function () {
+    alert("세션이 만료되어 로그아웃됩니다.");
+    window.location.href = "{{ url_for('home') }}";
+  }, 600000); // 600,000ms = 10분
+</script>
+{% endblock %}
