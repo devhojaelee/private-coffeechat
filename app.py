@@ -12,7 +12,7 @@ import os
 import sqlite3
 import json
 import sys
-from calendar_utils import create_meet_event
+from calendar_utils import create_meet_event, delete_event
 from email_utils import send_meet_email
 from collections import defaultdict
 
@@ -744,8 +744,7 @@ def cancel_booking(cancel_token):
         # Google Calendar 이벤트 삭제 (event_id가 있는 경우)
         if event_id:
             try:
-                from calendar_utils import delete_calendar_event
-                delete_calendar_event(TOKEN_PATH, "yslhj93@gmail.com", event_id)
+                delete_event(TOKEN_PATH, "yslhj93@gmail.com", event_id)
                 print(f"✅ Google Calendar 이벤트 삭제 완료: {event_id}")
             except Exception as e:
                 print(f"⚠️ Google Calendar 이벤트 삭제 실패: {e}")
