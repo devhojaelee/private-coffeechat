@@ -133,21 +133,13 @@ h2.fc-toolbar-title {
 
     <h3 class="text-center mb-3">📅 {{ link_name }}</h3>
 
-    <!-- 변경 모드 알림 -->
-    {% if session.get('change_mode') %}
-    <div class="alert alert-info mb-3">
-      <strong>🔄 예약 변경 모드</strong><br>
-      기존 예약을 변경하고 있습니다. 새로운 시간을 선택해주세요.
-    </div>
-    {% endif %}
-
     <!-- 카운트다운 타이머 -->
     <div class="timer-alert" id="timer-alert">
       <strong>⏰ 남은 시간: <span id="countdown">계산 중...</span></strong>
     </div>
 
     <p class="text-center text-muted mb-4">
-      <strong>{{ booking.email }}</strong>님, 원하시는 시간대를 선택해주세요.<br>
+      <strong>{{ booking.name }}</strong>님, 원하시는 시간대를 선택해주세요.<br>
       <small>최소 1개, 최대 16개까지 선택 가능 (연속된 시간만 선택 가능)</small>
     </p>
 
