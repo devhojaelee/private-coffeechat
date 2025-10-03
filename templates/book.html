@@ -12,7 +12,7 @@
   </div>
 
   <p class="text-center text-muted mb-4">
-    정보를 입력하시면 이메일 인증 후<br>
+    이메일을 입력하시면 인증 후<br>
     사용 가능한 시간대를 선택하실 수 있습니다.
   </p>
 
@@ -20,25 +20,13 @@
     <div class="alert alert-danger">{{ error }}</div>
   {% endif %}
 
-  <form method="post">
-    <div class="mb-3">
-      <label class="form-label">이름 *</label>
-      <input type="text" name="name" class="form-control" placeholder="홍길동" required>
-    </div>
-
+  <form method="post" id="emailForm">
     <div class="mb-3">
       <label class="form-label">이메일 *</label>
       <input type="email" name="email" class="form-control" placeholder="example@email.com" required>
-    </div>
-
-    <div class="mb-3">
-      <label class="form-label">전화번호 *</label>
-      <input type="text" name="phone" class="form-control" placeholder="010-1234-5678" required>
-    </div>
-
-    <div class="mb-3">
-      <label class="form-label">대화하고 싶은 주제 *</label>
-      <textarea name="purpose" class="form-control" rows="4" placeholder="어떤 이야기를 나누고 싶으신가요?" required></textarea>
+      <div class="invalid-feedback" id="emailError">
+        올바른 이메일 주소를 입력해주세요.
+      </div>
     </div>
 
     <button type="submit" class="btn coffee-btn w-100">다음 단계 (이메일 인증)</button>
@@ -129,5 +117,34 @@ function updateCountdown() {
 // 초기 실행 및 1초마다 업데이트
 updateCountdown();
 setInterval(updateCountdown, 1000);
+
+// Client-side email validation
+document.getElementById('emailForm').addEventListener('submit', function(e) {
+  const emailInput = this.querySelector('input[name="email"]');
+  const emailError = document.getElementById('emailError');
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  if (!emailInput.value.trim()) {
+    e.preventDefault();
+    emailInput.classList.add('is-invalid');
+    emailError.textContent = '이메일을 입력해주세요.';
+    return false;
+  }
+
+  if (!emailRegex.test(emailInput.value.trim())) {
+    e.preventDefault();
+    emailInput.classList.add('is-invalid');
+    emailError.textContent = '올바른 이메일 형식이 아닙니다.';
+    return false;
+  }
+
+  emailInput.classList.remove('is-invalid');
+  return true;
+});
+
+// Remove validation error on input
+document.querySelector('input[name="email"]').addEventListener('input', function() {
+  this.classList.remove('is-invalid');
+});
 </script>
 {% endblock %}
