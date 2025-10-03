@@ -256,12 +256,14 @@ h2.fc-toolbar-title {
           const year = middleDate.getFullYear();
           const month = middleDate.getMonth() + 1;
 
-          document.getElementById('loadingSpinner').style.display = 'flex';
+          const spinner = document.getElementById('loadingSpinner');
+          if (spinner) spinner.style.display = 'flex';
 
           fetch(`/api/available-slots?year=${year}&month=${month}&view=month`)
             .then(response => response.json())
             .then(data => {
-              document.getElementById('loadingSpinner').style.display = 'none';
+              const spinner = document.getElementById('loadingSpinner');
+              if (spinner) spinner.style.display = 'none';
 
               const grouped = data;
               const isMobile = window.innerWidth <= 576;
@@ -313,10 +315,12 @@ h2.fc-toolbar-title {
             .catch(err => {
               console.error(err);
               failureCallback(err);
-              document.getElementById('loadingSpinner').style.display = 'none';
+              const spinner = document.getElementById('loadingSpinner');
+              if (spinner) spinner.style.display = 'none';
             });
         },
         eventClick: function(info) {
+          console.log('Event clicked:', info.event);
           const dateStr = info.event.extendedProps.date;
           const selectedDate = new Date(dateStr);
           const now = new Date();
@@ -326,6 +330,9 @@ h2.fc-toolbar-title {
             alert("이미 지난 날짜는 선택할 수 없습니다.");
             return;
           }
+
+          console.log('Selected date:', dateStr);
+          console.log('Total allSlots:', allSlots.length);
 
           const list = document.getElementById("timeslot-list");
           list.innerHTML = "";
@@ -342,6 +349,8 @@ h2.fc-toolbar-title {
             const found = allSlots.find(slot => new Date(slot.start).getTime() === slotStart.getTime());
             slotsPerDay.push({ start: slotStart, end: slotEnd, available: !!found });
           }
+
+          console.log('Slots for this day:', slotsPerDay.filter(s => s.available).length);
 
           for (const slot of slotsPerDay) {
             const li = document.createElement("li");
