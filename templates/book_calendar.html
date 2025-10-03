@@ -127,6 +127,11 @@ h2.fc-toolbar-title {
 </head>
 <body>
   <div class="card">
+    <!-- 진행 단계 표시 (3/4) -->
+    <div class="text-center mb-3">
+      <small class="text-muted">3/4 단계</small>
+    </div>
+
     <h3 class="text-center mb-3">📅 {{ link_name }}</h3>
 
     <!-- 카운트다운 타이머 -->
@@ -173,7 +178,7 @@ h2.fc-toolbar-title {
           <input type="hidden" name="selected_slot" id="selected_slots_input">
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
-            <button type="submit" class="btn btn-primary" id="nextBtn" disabled>예약 확정</button>
+            <button type="submit" class="btn btn-primary" id="nextBtn" disabled>다음</button>
           </div>
         </form>
       </div>
