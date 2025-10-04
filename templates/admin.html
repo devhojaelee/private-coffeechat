@@ -776,9 +776,9 @@ updateStats();
   <div class="section-header">
     <h2 class="section-title">🔗 예약 링크 관리</h2>
     <div class="d-flex gap-2">
-      <form method="post" class="d-inline" onsubmit="return confirm('사용된 모든 링크를 삭제하시겠습니까?');">
+      <form method="post" class="d-inline" onsubmit="return confirm('사용된/만료된 모든 링크를 삭제하시겠습니까?');">
         <input type="hidden" name="delete_used_links" value="1">
-        <button type="submit" class="btn-modern btn-delete">✕ 사용된 링크 삭제</button>
+        <button type="submit" class="btn-modern btn-delete">✕ 사용된/만료된 링크 삭제</button>
       </form>
       <button class="btn-modern btn-create" onclick="document.getElementById('createLinkForm').style.display='block'">+ 새 링크 생성</button>
     </div>
