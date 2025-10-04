@@ -400,12 +400,19 @@
     }
   }
 
-  @media (max-width: 480px) {
-    /* 작은 모바일 - 통계 카드 1열 */
-    .stats-grid {
-      grid-template-columns: 1fr;
+  @media (max-width: 768px) {
+    /* 모바일에서 통계 카드를 맨 밑으로 이동 */
+    #admin-content {
+      display: flex;
+      flex-direction: column;
     }
 
+    #stats-section {
+      order: 999;
+    }
+  }
+
+  @media (max-width: 480px) {
     /* 섹션 패딩 축소 */
     .section {
       padding: 0.75rem;
@@ -433,45 +440,49 @@
   </div>
 </div>
 
-<!-- Stats Header -->
-<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-  <h2 style="font-size: 1.25rem; font-weight: 600; color: #4a3f35; margin: 0;">📊 통계</h2>
-  <div style="display: flex; align-items: center; gap: 1rem;">
-    <button onclick="changeStatsMonth(-1)" class="btn-modern" style="padding: 0.5rem 0.75rem;">
-      ◀
-    </button>
-    <span id="statsMonthLabel" style="font-size: 1rem; font-weight: 600; color: #6b4c3b; min-width: 100px; text-align: center;">
-      <!-- JavaScript로 채워짐 -->
-    </span>
-    <button onclick="changeStatsMonth(1)" class="btn-modern" style="padding: 0.5rem 0.75rem;">
-      ▶
-    </button>
-  </div>
-</div>
+<div id="admin-content">
+  <!-- Stats Section -->
+  <div id="stats-section">
+    <!-- Stats Header -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+      <h2 style="font-size: 1.25rem; font-weight: 600; color: #4a3f35; margin: 0;">📊 통계</h2>
+      <div style="display: flex; align-items: center; gap: 1rem;">
+        <button onclick="changeStatsMonth(-1)" class="btn-modern" style="padding: 0.5rem 0.75rem;">
+          ◀
+        </button>
+        <span id="statsMonthLabel" style="font-size: 1rem; font-weight: 600; color: #6b4c3b; min-width: 100px; text-align: center;">
+          <!-- JavaScript로 채워짐 -->
+        </span>
+        <button onclick="changeStatsMonth(1)" class="btn-modern" style="padding: 0.5rem 0.75rem;">
+          ▶
+        </button>
+      </div>
+    </div>
 
-<!-- Stats -->
-<div class="stats-grid">
-  <div class="stat-card">
-    <div class="icon">⏳</div>
-    <div class="value" id="stat-pending">0</div>
-    <div class="label">승인 대기</div>
+    <!-- Stats -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="icon">⏳</div>
+        <div class="value" id="stat-pending">0</div>
+        <div class="label">승인 대기</div>
+      </div>
+      <div class="stat-card">
+        <div class="icon">✅</div>
+        <div class="value" id="stat-confirmed">0</div>
+        <div class="label">승인 완료</div>
+      </div>
+      <div class="stat-card">
+        <div class="icon">❌</div>
+        <div class="value" id="stat-cancelled">0</div>
+        <div class="label">취소함</div>
+      </div>
+      <div class="stat-card">
+        <div class="icon">🔗</div>
+        <div class="value" id="stat-links">0</div>
+        <div class="label">전체 활성 링크</div>
+      </div>
+    </div>
   </div>
-  <div class="stat-card">
-    <div class="icon">✅</div>
-    <div class="value" id="stat-confirmed">0</div>
-    <div class="label">승인 완료</div>
-  </div>
-  <div class="stat-card">
-    <div class="icon">❌</div>
-    <div class="value" id="stat-cancelled">0</div>
-    <div class="label">취소함</div>
-  </div>
-  <div class="stat-card">
-    <div class="icon">🔗</div>
-    <div class="value" id="stat-links">0</div>
-    <div class="label">전체 활성 링크</div>
-  </div>
-</div>
 
 <script>
 // 날짜 문자열 정규화 함수
@@ -858,6 +869,8 @@ updateStats();
   </div>
   {% endif %}
 </div>
+
+</div><!-- End of admin-content -->
 
 <script>
 // 이메일 링크에서 특정 예약으로 이동
