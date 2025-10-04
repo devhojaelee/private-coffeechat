@@ -58,12 +58,6 @@ if [ -z "$LINEAR_API_KEY" ]; then
     exit 1
 fi
 
-# jq 있는지 확인
-if ! command -v jq &> /dev/null; then
-    echo "❌ jq가 설치되지 않았습니다. brew install jq로 설치하세요."
-    exit 1
-fi
-
 # gh CLI 있는지 확인
 if ! command -v gh &> /dev/null; then
     echo "❌ GitHub CLI가 설치되지 않았습니다. brew install gh로 설치하세요."
@@ -74,11 +68,11 @@ echo ""
 echo "🔍 Linear에서 Parent Issue '$PARENT_ISSUE_ID' 정보를 조회 중..."
 echo ""
 
-# Linear API 호출 - Parent Issue 정보 조회
+# Linear API 호출 - Parent Issue 정보 조회 (Sub Issue description 제외)
 RESPONSE=$(curl -s -X POST https://api.linear.app/graphql \
   -H "Authorization: $LINEAR_API_KEY" \
   -H "Content-Type: application/json" \
-  --data "{\"query\":\"query{issue(id:\\\"$PARENT_ISSUE_ID\\\"){id title description children{nodes{id identifier title description}}}}\"}")
+  --data "{\"query\":\"query{issue(id:\\\"$PARENT_ISSUE_ID\\\"){id title description children{nodes{id identifier title}}}}\"}")
 
 # 에러 확인
 if echo "$RESPONSE" | grep -q "errors"; then
@@ -87,19 +81,43 @@ if echo "$RESPONSE" | grep -q "errors"; then
     exit 1
 fi
 
-# Parent Issue 정보 추출
-PARENT_TITLE=$(echo "$RESPONSE" | jq -r '.data.issue.title')
-PARENT_DESC=$(echo "$RESPONSE" | jq -r '.data.issue.description // ""')
+# Python으로 JSON 파싱 (jq의 특수문자 파싱 문제 방지)
+PARSED=$(python3 <<PYTHON
+import json
+import sys
 
-if [ -z "$PARENT_TITLE" ] || [ "$PARENT_TITLE" = "null" ]; then
+response = '''$RESPONSE'''
+data = json.loads(response)
+issue = data['data']['issue']
+
+# Parent 정보
+title = issue['title']
+desc = issue.get('description', '')
+
+print(f"TITLE:{title}")
+print(f"DESC:{desc}")
+print("---SUB_ISSUES---")
+
+# Sub Issues
+for child in issue['children']['nodes']:
+    sub_id = child['identifier']
+    sub_title = child['title']
+    # description은 특수문자 때문에 제외
+    print(f"{sub_id}|{sub_title}")
+PYTHON
+)
+
+# 파싱 결과 추출
+PARENT_TITLE=$(echo "$PARSED" | grep "^TITLE:" | sed 's/^TITLE://')
+PARENT_DESC=$(echo "$PARSED" | grep "^DESC:" | sed 's/^DESC://')
+SUB_ISSUES=$(echo "$PARSED" | sed -n '/^---SUB_ISSUES---$/,$ p' | tail -n +2)
+
+if [ -z "$PARENT_TITLE" ]; then
     echo "❌ Parent Issue를 찾을 수 없습니다: $PARENT_ISSUE_ID"
     exit 1
 fi
 
 echo "📌 Parent Issue: $PARENT_TITLE"
-
-# Sub Issue 목록 추출
-SUB_ISSUES=$(echo "$RESPONSE" | jq -r '.data.issue.children.nodes | .[] | "\(.identifier)|\(.title)|\(.description // "")"')
 
 if [ -z "$SUB_ISSUES" ]; then
     echo "⚠️  Warning: Sub Issue가 없습니다."
@@ -115,15 +133,11 @@ $PARENT_DESC
 ## Implemented Features
 EOF
 
-# Sub Issue별 구현 내용 추가
+# Sub Issue별 구현 내용 추가 (title만 사용)
 if [ -n "$SUB_ISSUES" ]; then
-    while IFS='|' read -r ID TITLE DESC; do
+    while IFS='|' read -r ID TITLE; do
         echo "" >> "$PR_BODY_FILE"
         echo "### $ID: $TITLE" >> "$PR_BODY_FILE"
-        if [ -n "$DESC" ] && [ "$DESC" != "null" ]; then
-            # 체크박스 표시(- [ ], - [x])만 제거하고 나머지는 유지
-            echo "$DESC" | sed 's/^- \[[x ]\] /- /g' >> "$PR_BODY_FILE"
-        fi
     done <<< "$SUB_ISSUES"
 fi
 
@@ -132,9 +146,9 @@ cat >> "$PR_BODY_FILE" <<EOF
 ## Sub Issues
 EOF
 
-# Sub Issue 리스트 추가 (title만 사용, description 제외)
+# Sub Issue 리스트 추가 (title만 사용)
 if [ -n "$SUB_ISSUES" ]; then
-    while IFS='|' read -r ID TITLE DESC; do
+    while IFS='|' read -r ID TITLE; do
         echo "- $ID: $TITLE" >> "$PR_BODY_FILE"
     done <<< "$SUB_ISSUES"
 else
