@@ -316,17 +316,109 @@
   }
 
   @media (max-width: 768px) {
+    /* 헤더 */
+    .admin-header {
+      padding: 1rem;
+    }
+
+    .admin-header h1 {
+      font-size: 1.25rem;
+    }
+
+    /* 통계 카드 2열 */
     .stats-grid {
       grid-template-columns: repeat(2, 1fr);
+      gap: 0.75rem;
+    }
+
+    .stat-card {
+      padding: 0.75rem;
+    }
+
+    .stat-card .icon {
+      font-size: 1.5rem;
+    }
+
+    .stat-card .value {
+      font-size: 1.5rem;
+    }
+
+    /* 섹션 */
+    .section {
+      padding: 1rem;
+      border-radius: 0.75rem;
+    }
+
+    .section-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.75rem;
+    }
+
+    .section-title {
+      font-size: 1.1rem;
+    }
+
+    /* 테이블 스크롤 */
+    .table-responsive {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
     }
 
     .table-modern {
-      font-size: 0.875rem;
+      font-size: 0.8rem;
+      min-width: 600px;
     }
 
     .table-modern thead th,
     .table-modern tbody td {
-      padding: 0.75rem 0.5rem;
+      padding: 0.5rem 0.25rem;
+      white-space: nowrap;
+    }
+
+    /* 버튼 */
+    .btn-sm {
+      font-size: 0.75rem;
+      padding: 0.25rem 0.5rem;
+    }
+
+    /* 월 네비게이션 */
+    .month-nav {
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    /* 필터 폼 */
+    .filter-form {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .filter-form .form-control,
+    .filter-form .form-select {
+      width: 100%;
+    }
+  }
+
+  @media (max-width: 480px) {
+    /* 작은 모바일 - 통계 카드 1열 */
+    .stats-grid {
+      grid-template-columns: 1fr;
+    }
+
+    /* 섹션 패딩 축소 */
+    .section {
+      padding: 0.75rem;
+    }
+
+    /* 테이블 더 축소 */
+    .table-modern {
+      font-size: 0.75rem;
+    }
+
+    .table-modern thead th,
+    .table-modern tbody td {
+      padding: 0.4rem 0.2rem;
     }
   }
 </style>
