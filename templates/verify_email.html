@@ -32,7 +32,14 @@
   </form>
 
   <div class="text-center mt-3">
-    <a href="/" class="text-muted">홈으로 돌아가기</a>
+    <button type="button" class="btn btn-link text-muted" id="resendBtn" onclick="resendCode()">
+      인증 코드 재발송
+    </button>
+    <div id="resendMessage" class="mt-2"></div>
+  </div>
+
+  <div class="text-center mt-2">
+    <a href="/" class="text-muted small">홈으로 돌아가기</a>
   </div>
 </div>
 {% endblock %}
@@ -76,4 +83,61 @@
     box-shadow: 0 0 0 0.2rem rgba(197, 169, 144, 0.25);
   }
 </style>
+
+<script>
+let resendCooldown = false;
+
+function resendCode() {
+  if (resendCooldown) {
+    return;
+  }
+
+  const email = "{{ email }}";
+  const action = "{{ action }}";
+  const btn = document.getElementById('resendBtn');
+  const msgDiv = document.getElementById('resendMessage');
+
+  btn.disabled = true;
+  btn.textContent = '발송 중...';
+  msgDiv.innerHTML = '';
+
+  fetch('/resend-verification', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: `email=${encodeURIComponent(email)}&action=${encodeURIComponent(action)}`
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      msgDiv.innerHTML = '<div class="alert alert-success">' + data.message + '</div>';
+      resendCooldown = true;
+      let countdown = 60;
+      btn.textContent = `재발송 (${countdown}초)`;
+
+      const interval = setInterval(() => {
+        countdown--;
+        if (countdown > 0) {
+          btn.textContent = `재발송 (${countdown}초)`;
+        } else {
+          clearInterval(interval);
+          btn.textContent = '인증 코드 재발송';
+          btn.disabled = false;
+          resendCooldown = false;
+        }
+      }, 1000);
+    } else {
+      msgDiv.innerHTML = '<div class="alert alert-danger">' + data.message + '</div>';
+      btn.disabled = false;
+      btn.textContent = '인증 코드 재발송';
+    }
+  })
+  .catch(error => {
+    msgDiv.innerHTML = '<div class="alert alert-danger">재발송에 실패했습니다. 다시 시도해주세요.</div>';
+    btn.disabled = false;
+    btn.textContent = '인증 코드 재발송';
+  });
+}
+</script>
 {% endblock %}

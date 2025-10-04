@@ -1426,6 +1426,57 @@ def verify_email():
     return redirect("/")
 
 
+@app.route("/resend-verification", methods=["POST"])
+def resend_verification():
+    """이메일 인증 코드 재발송"""
+    email = request.form.get("email")
+    action = request.form.get("action")
+
+    if not email:
+        return jsonify({"success": False, "message": "이메일이 필요합니다."}), 400
+
+    # Rate limiting: 최근 1분 내 발송 체크
+    with sqlite3.connect(DB_PATH) as conn:
+        c = conn.cursor()
+        c.execute(
+            """
+            SELECT created_at FROM email_verification
+            WHERE email = ? AND created_at > datetime('now', '-1 minute')
+            ORDER BY created_at DESC LIMIT 1
+            """,
+            (email,)
+        )
+        recent = c.fetchone()
+
+    if recent:
+        return jsonify({"success": False, "message": "1분 후에 다시 시도해주세요."}), 429
+
+    # 새 인증 코드 생성 및 발송
+    from email_utils import generate_verification_code, send_verification_email
+
+    code = generate_verification_code()
+    expires_at = datetime.now() + timedelta(minutes=5)
+
+    with sqlite3.connect(DB_PATH) as conn:
+        c = conn.cursor()
+        c.execute(
+            """
+            INSERT INTO email_verification (email, code, expires_at, created_at)
+            VALUES (?, ?, ?, ?)
+            """,
+            (email, code, expires_at, datetime.now())
+        )
+        conn.commit()
+
+    try:
+        send_verification_email(email, code)
+        print(f"✅ 인증 코드 재발송 성공: {email}")
+        return jsonify({"success": True, "message": "인증 코드가 재발송되었습니다."})
+    except Exception as e:
+        print(f"❌ 이메일 재발송 실패: {e}")
+        return jsonify({"success": False, "message": f"이메일 발송에 실패했습니다: {str(e)}"}), 500
+
+
 @app.route("/reservation", methods=["POST"])
 def reservation():
     raw = request.form.get("selected_slots", "")
