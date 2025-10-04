@@ -18,7 +18,13 @@ touch /var/log/reminder.log
 
 # 토큰 갱신은 app.py에서 자동 처리됨 (수동 실행: docker exec -it private-coffeechat python refresh_token.py)
 
-# 데이터베이스 초기화 (없으면 생성)
+# 데이터베이스 파일 생성 (없으면)
+if [ ! -f /app/user.db ]; then
+    echo "📂 Creating user.db file..."
+    touch /app/user.db
+fi
+
+# 데이터베이스 초기화 (테이블 생성)
 echo "📊 Initializing database..."
 python -c "from app import init_db; init_db()"
 
