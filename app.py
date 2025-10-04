@@ -874,15 +874,20 @@ def admin():
 
             return redirect("/admin")
 
-        # 🆕 사용된 링크 일괄 삭제
+        # 🆕 사용된/만료된 링크 일괄 삭제
         elif "delete_used_links" in request.form:
             with sqlite3.connect(DB_PATH) as conn:
                 c = conn.cursor()
-                # used=1인 링크들 삭제
-                c.execute("DELETE FROM booking_links WHERE used = 1")
+                # used=1 또는 expires_at < now인 링크들 삭제
+                c.execute(
+                    """
+                    DELETE FROM booking_links
+                    WHERE used = 1 OR datetime(expires_at) < datetime('now')
+                    """
+                )
                 deleted_count = c.rowcount
                 conn.commit()
-                print(f"✅ 사용된 링크 {deleted_count}개 삭제 완료")
+                print(f"✅ 사용된/만료된 링크 {deleted_count}개 삭제 완료")
 
             return redirect("/admin")
 
