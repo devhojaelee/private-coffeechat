@@ -4,27 +4,55 @@
 # 설정 변수 및 명령어 정의
 # =================================================================
 PARENT_ID="$1"
+BASE_BRANCH="${2:-main}"  # 두 번째 인자로 base 브랜치 지정, 기본값은 main
 MAX_CONCURRENT=4
 TMUX_SESSION_NAME="Claude-Worker-$PARENT_ID"
 
+# 프로젝트 루트 디렉토리로 이동
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$PROJECT_ROOT"
+
+# .env 파일에서 LINEAR_API_KEY 로드
+if [ -f .env.prod ]; then
+    set -a
+    source .env.prod
+    set +a
+elif [ -f .env.dev ]; then
+    set -a
+    source .env.dev
+    set +a
+fi
+
+if [ -z "$LINEAR_API_KEY" ]; then
+    echo "❌ LINEAR_API_KEY가 .env.prod 또는 .env.dev 파일에 설정되지 않았습니다."
+    echo "현재 디렉토리: $(pwd)"
+    echo ".env 파일 존재 여부:"
+    ls -la .env* 2>/dev/null || echo "  .env 파일 없음"
+    exit 1
+fi
+
+# GitHub 레포지토리 정보 추출
+REPO_URL=$(git remote get-url origin 2>/dev/null)
+GITHUB_REPO=$(echo "$REPO_URL" | sed -E 's/.*github\.com[\/:](.+)(\.git)?$/\1/' | sed 's/\.git$//')
+
 # -----------------------------------------------------------------
-# Claude Code 워크플로우 프롬프트 (Phase 1-4 내용)
-# - 이 변수는 개별 Sub Issue를 처리하는 Claude Agent에게 전달됩니다.
+# Claude Code 워크플로우 프롬프트
 # -----------------------------------------------------------------
-# 🚨 이중 따옴표(")와 역슬래시(\) 처리에 유의하여 정의
-CLAUDE_WORKFLOW_PROMPT="
+read -r -d '' CLAUDE_WORKFLOW_PROMPT <<'EOF'
 # Claude Code 에이전트 실행 워크플로우
 linear mcp's team = 100products, project name = Coffeechat
+GitHub Repository = ${GITHUB_REPO}
 ---
 ### # Phase 1. Add Context & System Lock Management (맥락 및 시스템 잠금 관리)
 
 **Lock의 목적**: 동시 작업으로 인한 혼란 방지 및 순서 보장 (충돌 완전 방지가 아님, 시간차 충돌은 integrate.sh에서 해결)
 
-1. Issue 정보 로딩: 현재 Git Branch 정보(\$BRANCH_NAME)와 연결된 Linear Issue (\$ISSUE_ID)를 로드한다.
+1. Issue 정보 로딩: 현재 Git Branch 정보($BRANCH_NAME)와 연결된 Linear Issue ($ISSUE_ID)를 로드한다.
 2. 잠재적 동시 작업 영역 식별 및 Lock 레이블 생성: Sub Issue의 구현 계획을 분석하여 공유 자원(파일)을 수정해야 하는지 평가한다. 수정이 필요하다면 해당 자원을 명시하는 레이블(예: 'Lock: app.py', 'Lock: email_utils.py')을 생성하거나 재사용한다.
 3. 병렬 진행 확인 및 Lock 설정:
    - 동일한 Lock 레이블을 가진 다른 Sub Issue 중 'In Progress' 상태인 이슈가 있는지 Linear API를 통해 확인한다.
-   - 발견 시 (Lock 발생): 현재 이슈의 상태를 'BLOCKED'로 변경한다. comment에 "동시 작업 방지를 위해 대기 중. Lock 소유 이슈: [이슈 ID]"를 기록하고, 다음 로직을 **종료**한다.
+   - 발견 시 (Lock 발생): 현재 이슈의 상태를 'BLOCKED'로 변경한다. comment에 "동시 작업 방지를 위해 대기 중. Lock 소유 이슈: {이슈 ID}"를 기록하고, 다음 로직을 **종료**한다.
    - 발견하지 못할 시 (Lock 획득): 현재 이슈에 해당 Lock 레이블을 즉시 적용한다. 'BLOCKED' 상태였을 경우, 상태를 'In Progress'로 변경하고 다음 단계(Phase 2)를 진행한다.
 
 ---
@@ -49,52 +77,109 @@ linear mcp's team = 100products, project name = Coffeechat
    - status = 'To Do'로 변경한다.
    - Lock 유지: Phase 1에서 적용된 Lock 레이블은 유지한다.
    - comment에 상세한 실패 분석 보고서를 작성하고, 'failed' 레이블을 추가한다.
-"
+EOF
+
+# GITHUB_REPO 변수 치환
+CLAUDE_WORKFLOW_PROMPT="${CLAUDE_WORKFLOW_PROMPT//\$\{GITHUB_REPO\}/$GITHUB_REPO}"
 
 if [ -z "$PARENT_ID" ]; then
-    echo "사용법: $0 <Parent_Issue_ID>"
+    echo "사용법: $0 <Parent_Issue_ID> [Base_Branch]"
+    echo "예시:"
+    echo "  $0 100P-123                                    # main 브랜치 기준"
+    echo "  $0 100P-123 feature/workflow-automation-docs  # 특정 브랜치 기준"
+    exit 1
+fi
+
+# Base 브랜치 존재 확인
+if ! git rev-parse --verify "$BASE_BRANCH" >/dev/null 2>&1; then
+    echo "❌ Base 브랜치 '$BASE_BRANCH'가 존재하지 않습니다."
     exit 1
 fi
 
 # -----------------------------------------------------------------
-# 1. Claude Main Agent를 통해 Tmux 실행 명령 목록을 생성 (Linear MCP 활용)
+# 1. Linear GraphQL API 직접 호출 (Bash에서 처리)
 # -----------------------------------------------------------------
-echo "🏗️ Claude Main Agent를 통해 Linear 이슈 데이터 처리 중..."
+echo "🏗️ Linear API에서 이슈 데이터 가져오는 중..."
 
-# Tmux 명령에 포함될 Claude Code 실행 명령 인코딩
-# (Bash 문자열 내에서 복잡한 따옴표 처리와 이스케이프를 위해 별도 변수화)
-ENCODED_CLAUDE_PROMPT=$(echo "$CLAUDE_WORKFLOW_PROMPT" | sed 's/"/\\"/g')
+# 워크플로우 프롬프트를 임시 파일에 저장
+WORKFLOW_FILE="/tmp/ttalkak-workflow-${PARENT_ID}.txt"
+echo "$CLAUDE_WORKFLOW_PROMPT" > "$WORKFLOW_FILE"
+trap "rm -f $WORKFLOW_FILE" EXIT
 
-# Main Agent에게 데이터 처리 및 Tmux 명령 목록 생성을 지시하는 프롬프트
-DATA_PROCESSING_PROMPT="Linear MCP를 사용하여 다음 작업을 수행하라:
+# Linear API 호출
+RESPONSE=$(curl -s -X POST https://api.linear.app/graphql \
+  -H "Authorization: $LINEAR_API_KEY" \
+  -H "Content-Type: application/json" \
+  --data "{\"query\":\"query{issue(id:\\\"$PARENT_ID\\\"){id title children{nodes{id identifier title priority state{name}}}}}\"}")
 
-1. Parent Issue '$PARENT_ID'의 정보를 가져와 title을 kebab-case로 변환
-2. Sub Issue 목록을 가져와 우선순위 순으로 정렬
-3. 각 Sub Issue의 ID와 title을 가져오고, title을 kebab-case로 변환 (소문자, 공백/특수문자는 하이픈으로 치환)
+# 에러 확인
+if echo "$RESPONSE" | grep -q "errors"; then
+    echo "❌ Linear API 호출 실패:"
+    echo "$RESPONSE" | python3 -m json.tool 2>/dev/null || echo "$RESPONSE"
+    exit 1
+fi
 
-출력 형식:
-- **첫 번째 줄**: Parent 브랜치 생성 명령
-  git checkout main && git pull && git checkout -b feature/[PARENT_ID]-[parent-kebab-title] && echo 'Parent 브랜치 생성 완료: feature/[PARENT_ID]-[parent-kebab-title]'
+# jq 있는지 확인
+if ! command -v jq &> /dev/null; then
+    echo "❌ jq가 설치되지 않았습니다. brew install jq로 설치하세요."
+    exit 1
+fi
 
-- **이후 줄들**: Sub Issue 브랜치 생성 및 작업 명령 (자동 재시도 포함)
-  - 브랜치 형식: feature/[ID]-[kebab-case-title]
-  - 우선순위 상위 $MAX_CONCURRENT개:
-    while true; do git checkout main && git pull && git checkout -b feature/[ID]-[kebab-case-title] 2>/dev/null || git checkout feature/[ID]-[kebab-case-title]; claude \"Issue [ID]를 해결해줘. Branch: feature/[ID]-[kebab-case-title]. $ENCODED_CLAUDE_PROMPT\"; EXIT_CODE=\$?; if [ \$EXIT_CODE -eq 0 ]; then echo '✅ Issue [ID] 완료'; break; else echo '⏳ BLOCKED - 30초 후 자동 재시도...'; sleep 30; fi; done
+# Parent title 추출 및 kebab-case 변환 (한글 제거, 영문/숫자만)
+PARENT_TITLE=$(echo "$RESPONSE" | jq -r '.data.issue.title' | iconv -f UTF-8 -t ASCII//TRANSLIT 2>/dev/null | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g' | sed 's/--*/-/g' | sed 's/^-//' | sed 's/-$//')
+# 제목이 비어있으면 parent로 대체
+if [ -z "$PARENT_TITLE" ] || [ "$PARENT_TITLE" = "-" ]; then
+    PARENT_TITLE="parent"
+fi
 
-  - 나머지:
-    echo 'Issue [ID] 대기 중. 시작하려면 엔터: ' && read -r && while true; do git checkout main && git pull && git checkout -b feature/[ID]-[kebab-case-title] 2>/dev/null || git checkout feature/[ID]-[kebab-case-title]; claude \"Issue [ID]를 해결해줘. Branch: feature/[ID]-[kebab-case-title]. $ENCODED_CLAUDE_PROMPT\"; EXIT_CODE=\$?; if [ \$EXIT_CODE -eq 0 ]; then echo '✅ Issue [ID] 완료'; break; else echo '⏳ BLOCKED - 30초 후 자동 재시도...'; sleep 30; fi; done
-"
+# Parent 브랜치 생성 명령 (지정된 base 브랜치 기준)
+COMMANDS="git stash push -m 'ttalkak-auto-stash' && git checkout $BASE_BRANCH && git pull && git checkout -b feature/$PARENT_ID-$PARENT_TITLE && echo 'Parent 브랜치 생성 완료: feature/$PARENT_ID-$PARENT_TITLE (base: $BASE_BRANCH)'"
 
-# Claude를 실행하고 출력된 명령들을 변수에 저장
-COMMANDS=$(claude -p "$DATA_PROCESSING_PROMPT")
+# Sub Issue 목록 추출 및 정렬 (priority 낮은 숫자 = 높은 우선순위)
+SUB_ISSUES=$(echo "$RESPONSE" | jq -r '.data.issue.children.nodes | sort_by(.priority) | .[] | "\(.identifier)|\(.title)|\(.priority)"')
 
-if [ -z "$COMMANDS" ]; then
-    echo "⚠️ Sub Issue를 찾지 못했거나 Claude의 응답이 없습니다. 스크립트를 종료합니다."
+# 각 Sub Issue의 상세 정보를 파일로 저장
+mkdir -p /tmp/ttalkak-issues-${PARENT_ID}
+echo "$RESPONSE" | jq -r '.data.issue.children.nodes[] | "\(.identifier)\n\(.title)\n\(.description // "설명 없음")\n---"' > /tmp/ttalkak-issues-${PARENT_ID}/all-issues.txt
+
+if [ -z "$SUB_ISSUES" ]; then
+    echo "⚠️ Sub Issue가 없습니다."
     exit 0
 fi
 
+# Sub Issue 명령 생성
+COUNT=0
+while IFS='|' read -r ID TITLE PRIORITY; do
+    # kebab-case 변환 (한글 제거, 영문/숫자만)
+    KEBAB_TITLE=$(echo "$TITLE" | iconv -f UTF-8 -t ASCII//TRANSLIT 2>/dev/null | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g' | sed 's/--*/-/g' | sed 's/^-//' | sed 's/-$//')
+    # 제목이 비어있으면 issue-N으로 대체
+    if [ -z "$KEBAB_TITLE" ] || [ "$KEBAB_TITLE" = "-" ]; then
+        KEBAB_TITLE="issue-$COUNT"
+    fi
+
+    # 각 Sub Issue 정보를 Linear API에서 가져와 임시 파일에 저장
+    ISSUE_FILE="/tmp/ttalkak-issues-${PARENT_ID}/${ID}.txt"
+    curl -s -X POST https://api.linear.app/graphql \
+      -H "Authorization: $LINEAR_API_KEY" \
+      -H "Content-Type: application/json" \
+      --data "{\"query\":\"query{issue(id:\\\"$ID\\\"){id identifier title description}}\"}" | \
+      jq -r '.data.issue | "Issue ID: \(.identifier)\nTitle: \(.title)\nDescription:\n\(.description // "설명 없음")"' > "$ISSUE_FILE"
+
+    if [ $COUNT -lt $MAX_CONCURRENT ]; then
+        # 우선순위 상위: 자동 시작 (base 브랜치 기준)
+        COMMANDS="$COMMANDS
+while true; do git stash push -m 'ttalkak-auto-stash' 2>/dev/null; git checkout $BASE_BRANCH && git pull && git checkout -b feature/$ID-$KEBAB_TITLE 2>/dev/null || git checkout feature/$ID-$KEBAB_TITLE; ISSUE_CONTENT=\$(cat $ISSUE_FILE); claude \"\$ISSUE_CONTENT. Branch: feature/$ID-$KEBAB_TITLE. \$(cat $WORKFLOW_FILE)\"; EXIT_CODE=\$?; if [ \$EXIT_CODE -eq 0 ]; then echo '✅ Issue $ID 완료'; break; else echo '⏳ BLOCKED - 30초 후 자동 재시도...'; sleep 30; fi; done"
+    else
+        # 나머지: 대기 (base 브랜치 기준)
+        COMMANDS="$COMMANDS
+echo 'Issue $ID 대기 중. 시작하려면 엔터: ' && read -r && while true; do git stash push -m 'ttalkak-auto-stash' 2>/dev/null; git checkout $BASE_BRANCH && git pull && git checkout -b feature/$ID-$KEBAB_TITLE 2>/dev/null || git checkout feature/$ID-$KEBAB_TITLE; ISSUE_CONTENT=\$(cat $ISSUE_FILE); claude \"\$ISSUE_CONTENT. Branch: feature/$ID-$KEBAB_TITLE. \$(cat $WORKFLOW_FILE)\"; EXIT_CODE=\$?; if [ \$EXIT_CODE -eq 0 ]; then echo '✅ Issue $ID 완료'; break; else echo '⏳ BLOCKED - 30초 후 자동 재시도...'; sleep 30; fi; done"
+    fi
+
+    COUNT=$((COUNT + 1))
+done <<< "$SUB_ISSUES"
+
 # -----------------------------------------------------------------
-# 2. Tmux 환경 설정 및 명령 실행 (Bash의 역할)
+# 2. Tmux 환경 설정 및 명령 실행
 # -----------------------------------------------------------------
 echo "🛠️ Git 환경 설정 및 Tmux 세션 등록 시작..."
 
@@ -108,15 +193,15 @@ IFS=$'\n' read -r -d '' -a EXEC_CMDS <<< "$COMMANDS"
 
 for i in "${!EXEC_CMDS[@]}"; do
     CMD=${EXEC_CMDS[i]}
-    
+
     # Git 명령과 Claude 명령이 모두 포함된 CMD를 Tmux에 전달
     if [ "$i" -eq 0 ]; then
-        # 첫 번째 명령은 기본 패인에서 실행
-        tmux send-keys -t "$TMUX_SESSION_NAME" "$CMD" C-m
+        # 첫 번째 명령은 기본 윈도우에서 실행
+        tmux send-keys -t "$TMUX_SESSION_NAME" -- "$CMD" C-m
     else
-        # 나머지 명령은 새 패인에서 실행
-        tmux split-window -t "$TMUX_SESSION_NAME" -d -c "$PWD"
-        tmux send-keys -t "$TMUX_SESSION_NAME" "$CMD" C-m
+        # 나머지 명령은 새 윈도우에서 실행
+        tmux new-window -t "$TMUX_SESSION_NAME" -c "$PWD"
+        tmux send-keys -t "$TMUX_SESSION_NAME" -- "$CMD" C-m
     fi
 done
 
@@ -124,9 +209,12 @@ echo "
 ===================================================================
 ✅ Claude Parallel Runner 준비 완료
 ===================================================================
+Base Branch: $BASE_BRANCH
 세션 이름: $TMUX_SESSION_NAME
 접속 명령: tmux attach -t $TMUX_SESSION_NAME
 
-- 우선순위 상위 4개는 자동으로 작업을 시작했습니다.
-- 나머지 작업은 해당 패인에서 엔터를 누르면 시작됩니다.
+- Parent 및 Sub 브랜치는 모두 '$BASE_BRANCH'에서 분기합니다.
+- 우선순위 상위 $MAX_CONCURRENT개는 자동으로 작업을 시작했습니다.
+- 나머지 작업은 해당 윈도우에서 엔터를 누르면 시작됩니다.
+- 윈도우 이동: Ctrl+b, n (다음) / Ctrl+b, p (이전) / Ctrl+b, w (목록)
 "
