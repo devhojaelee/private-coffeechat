@@ -120,9 +120,7 @@ if [ -n "$SUB_ISSUES" ]; then
     while IFS='|' read -r ID TITLE DESC; do
         echo "" >> "$PR_BODY_FILE"
         echo "### $ID: $TITLE" >> "$PR_BODY_FILE"
-        if [ -n "$DESC" ] && [ "$DESC" != "null" ]; then
-            echo "$DESC" >> "$PR_BODY_FILE"
-        fi
+        # Description은 마크다운 체크리스트가 포함되어 깨질 수 있으므로 제외
     done <<< "$SUB_ISSUES"
 fi
 
@@ -131,7 +129,7 @@ cat >> "$PR_BODY_FILE" <<EOF
 ## Sub Issues
 EOF
 
-# Sub Issue 리스트 추가
+# Sub Issue 리스트 추가 (title만 사용, description 제외)
 if [ -n "$SUB_ISSUES" ]; then
     while IFS='|' read -r ID TITLE DESC; do
         echo "- $ID: $TITLE" >> "$PR_BODY_FILE"
