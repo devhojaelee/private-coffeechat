@@ -49,10 +49,10 @@ jobs:
           script: |
             cd /volume1/docker/private-coffeechat
             /usr/local/bin/git pull origin main
-            /usr/local/bin/docker-compose down
-            /usr/local/bin/docker-compose build
-            /usr/local/bin/docker-compose up -d
-            /usr/local/bin/docker-compose logs --tail=50
+            sg docker -c "/usr/local/bin/docker-compose down"
+            sg docker -c "/usr/local/bin/docker-compose build"
+            sg docker -c "/usr/local/bin/docker-compose up -d"
+            sg docker -c "/usr/local/bin/docker-compose logs --tail=50"
 
       - name: Notify deployment status
         if: success()
