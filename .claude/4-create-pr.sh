@@ -32,8 +32,9 @@ echo ""
 echo "🤖 Claude Code를 호출하여 Linear 정보로 PR을 생성합니다..."
 echo ""
 
-# Claude Code에게 PR 생성 요청
-claude --prompt "
+# Claude Code에게 PR 생성 요청 (임시 파일 사용)
+PR_PROMPT_FILE="/tmp/create-pr-prompt-${PARENT_ISSUE_ID}.txt"
+cat > "$PR_PROMPT_FILE" <<EOF
 Linear MCP를 사용하여 Parent Issue ID: ${PARENT_ISSUE_ID}의 정보를 읽어서 GitHub PR을 생성해줘.
 
 **단계**:
@@ -45,8 +46,8 @@ Linear MCP를 사용하여 Parent Issue ID: ${PARENT_ISSUE_ID}의 정보를 읽�
 
 \`\`\`
 gh pr create --base main --head ${CURRENT_BRANCH} \\
-  --title \"[Parent Issue 제목]\" \\
-  --body \"
+  --title "[Parent Issue 제목]" \\
+  --body "
 ## Summary
 [Parent Issue 설명 또는 주요 구현 내용 요약]
 
@@ -63,14 +64,18 @@ gh pr create --base main --head ${CURRENT_BRANCH} \\
 
 ## Notes
 [추가 참고사항이 있다면]
-\"
+"
 \`\`\`
 
 **중요**:
 - Linear에서 실제 정보를 읽어서 PR body를 채워넣어야 함
 - gh pr create 명령어를 실행해서 실제로 PR 생성
 - PR URL을 출력해줘
-"
+EOF
+
+# 프롬프트 파일을 읽어서 Claude 실행
+claude -p "$(cat $PR_PROMPT_FILE)"
+rm -f "$PR_PROMPT_FILE"
 
 echo ""
 echo "✅ PR 생성 스크립트 완료"
