@@ -876,14 +876,18 @@ def admin():
 
         # 🆕 사용된/만료된 링크 일괄 삭제
         elif "delete_used_links" in request.form:
+            # 한국 시간 기준으로 현재 시각 계산
+            now_kst = datetime.now(korea_tz).replace(tzinfo=None)
+
             with sqlite3.connect(DB_PATH) as conn:
                 c = conn.cursor()
-                # used=1 또는 expires_at < now인 링크들 삭제
+                # used=1 또는 expires_at < now(KST)인 링크들 삭제
                 c.execute(
                     """
                     DELETE FROM booking_links
-                    WHERE used = 1 OR datetime(expires_at) < datetime('now')
-                    """
+                    WHERE used = 1 OR datetime(expires_at) < datetime(?)
+                    """,
+                    (now_kst.isoformat(),)
                 )
                 deleted_count = c.rowcount
                 conn.commit()
