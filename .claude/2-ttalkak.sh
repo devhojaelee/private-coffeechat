@@ -79,14 +79,14 @@ DATA_PROCESSING_PROMPT="Linear MCP를 사용하여 다음 작업을 수행하라
 - **이후 줄들**: Sub Issue 브랜치 생성 및 작업 명령 (자동 재시도 포함)
   - 브랜치 형식: feature/[ID]-[kebab-case-title]
   - 우선순위 상위 $MAX_CONCURRENT개:
-    while true; do git checkout main && git pull && git checkout -b feature/[ID]-[kebab-case-title] 2>/dev/null || git checkout feature/[ID]-[kebab-case-title]; claude --issue [ID] --branch feature/[ID]-[kebab-case-title] --prompt \"$ENCODED_CLAUDE_PROMPT\"; EXIT_CODE=\$?; if [ \$EXIT_CODE -eq 0 ]; then echo '✅ Issue [ID] 완료'; break; else echo '⏳ BLOCKED - 30초 후 자동 재시도...'; sleep 30; fi; done
+    while true; do git checkout main && git pull && git checkout -b feature/[ID]-[kebab-case-title] 2>/dev/null || git checkout feature/[ID]-[kebab-case-title]; claude \"Issue [ID]를 해결해줘. Branch: feature/[ID]-[kebab-case-title]. $ENCODED_CLAUDE_PROMPT\"; EXIT_CODE=\$?; if [ \$EXIT_CODE -eq 0 ]; then echo '✅ Issue [ID] 완료'; break; else echo '⏳ BLOCKED - 30초 후 자동 재시도...'; sleep 30; fi; done
 
   - 나머지:
-    echo 'Issue [ID] 대기 중. 시작하려면 엔터: ' && read -r && while true; do git checkout main && git pull && git checkout -b feature/[ID]-[kebab-case-title] 2>/dev/null || git checkout feature/[ID]-[kebab-case-title]; claude --issue [ID] --branch feature/[ID]-[kebab-case-title] --prompt \"$ENCODED_CLAUDE_PROMPT\"; EXIT_CODE=\$?; if [ \$EXIT_CODE -eq 0 ]; then echo '✅ Issue [ID] 완료'; break; else echo '⏳ BLOCKED - 30초 후 자동 재시도...'; sleep 30; fi; done
+    echo 'Issue [ID] 대기 중. 시작하려면 엔터: ' && read -r && while true; do git checkout main && git pull && git checkout -b feature/[ID]-[kebab-case-title] 2>/dev/null || git checkout feature/[ID]-[kebab-case-title]; claude \"Issue [ID]를 해결해줘. Branch: feature/[ID]-[kebab-case-title]. $ENCODED_CLAUDE_PROMPT\"; EXIT_CODE=\$?; if [ \$EXIT_CODE -eq 0 ]; then echo '✅ Issue [ID] 완료'; break; else echo '⏳ BLOCKED - 30초 후 자동 재시도...'; sleep 30; fi; done
 "
 
 # Claude를 실행하고 출력된 명령들을 변수에 저장
-COMMANDS=$(claude --prompt "$DATA_PROCESSING_PROMPT")
+COMMANDS=$(claude -p "$DATA_PROCESSING_PROMPT")
 
 if [ -z "$COMMANDS" ]; then
     echo "⚠️ Sub Issue를 찾지 못했거나 Claude의 응답이 없습니다. 스크립트를 종료합니다."
