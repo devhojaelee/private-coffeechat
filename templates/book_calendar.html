@@ -147,7 +147,7 @@ h2.fc-toolbar-title {
     </div>
 
     <p class="text-center text-muted mb-4">
-      <strong>{{ booking.name }}</strong>님, 원하시는 시간대를 선택해주세요.<br>
+      <strong>{{ booking.email }}</strong>님, 원하시는 시간대를 선택해주세요.<br>
       <small>최소 1개, 최대 16개까지 선택 가능 (연속된 시간만 선택 가능)</small>
     </p>
 
@@ -269,12 +269,14 @@ h2.fc-toolbar-title {
 
       const baseDate = new Date(`${dateStr}T10:00:00`);
       const slotsPerDay = [];
+      const currentTime = new Date();
 
       for (let i = 0; i < 16; i++) {
         const slotStart = new Date(baseDate.getTime() + i * 30 * 60 * 1000);
         const slotEnd = new Date(slotStart.getTime() + 30 * 60 * 1000);
+        const isPast = slotEnd <= currentTime; // 슬롯 종료 시간이 현재보다 이전인지 체크
         const found = allSlots.find(slot => new Date(slot.start).getTime() === slotStart.getTime());
-        slotsPerDay.push({ start: slotStart, end: slotEnd, available: !!found });
+        slotsPerDay.push({ start: slotStart, end: slotEnd, available: !!found && !isPast });
       }
 
       console.log('Slots for this day:', slotsPerDay.filter(s => s.available).length);
