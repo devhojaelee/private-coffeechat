@@ -120,7 +120,10 @@ if [ -n "$SUB_ISSUES" ]; then
     while IFS='|' read -r ID TITLE DESC; do
         echo "" >> "$PR_BODY_FILE"
         echo "### $ID: $TITLE" >> "$PR_BODY_FILE"
-        # Description은 마크다운 체크리스트가 포함되어 깨질 수 있으므로 제외
+        if [ -n "$DESC" ] && [ "$DESC" != "null" ]; then
+            # 체크박스 표시(- [ ], - [x])만 제거하고 나머지는 유지
+            echo "$DESC" | sed 's/^- \[[x ]\] /- /g' >> "$PR_BODY_FILE"
+        fi
     done <<< "$SUB_ISSUES"
 fi
 
