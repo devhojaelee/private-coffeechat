@@ -222,6 +222,7 @@ def init_db():
                 status TEXT DEFAULT 'pending',
                 meet_link TEXT,
                 cancel_token TEXT UNIQUE,
+                cancel_reason TEXT,
                 created_at TEXT,
                 confirmed_at TEXT,
                 cancelled_at TEXT,
