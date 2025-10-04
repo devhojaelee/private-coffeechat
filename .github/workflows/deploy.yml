@@ -51,6 +51,7 @@ jobs:
             /usr/local/bin/git pull origin main
             /usr/local/bin/docker-compose down
             /usr/local/bin/docker-compose build --pull
+            touch user.db
             /usr/local/bin/docker-compose up -d
             /usr/local/bin/docker-compose logs --tail=50
 
