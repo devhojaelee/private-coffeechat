@@ -48,11 +48,11 @@ jobs:
           port: 2222
           script: |
             cd /volume1/docker/private-coffeechat
-            git pull origin main
-            docker-compose down
-            docker-compose build
-            docker-compose up -d
-            docker-compose logs --tail=50
+            /usr/local/bin/git pull origin main
+            /usr/local/bin/docker-compose down
+            /usr/local/bin/docker-compose build
+            /usr/local/bin/docker-compose up -d
+            /usr/local/bin/docker-compose logs --tail=50
 
       - name: Notify deployment status
         if: success()
