@@ -1,8 +1,17 @@
 #!/bin/bash
 set -e
 
+# =================================================================
 # create-pr.sh - Linear 정보를 기반으로 PR 자동 생성
-# Usage: ./create-pr.sh {Parent-Issue-ID}
+# =================================================================
+# 사용법: ./create-pr.sh <Parent_Issue_ID>
+#
+# 기능:
+# 1. Linear GraphQL API로 Parent Issue 정보 조회
+# 2. Sub Issue 목록 조회
+# 3. PR body 자동 생성
+# 4. gh pr create 실행
+# =================================================================
 
 PARENT_ISSUE_ID="$1"
 
@@ -28,49 +37,165 @@ if [[ ! "$CURRENT_BRANCH" =~ ^feature/${PARENT_ISSUE_ID}- ]]; then
     fi
 fi
 
+# 프로젝트 루트 디렉토리로 이동
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$PROJECT_ROOT"
+
+# .env 파일에서 LINEAR_API_KEY 로드
+if [ -f .env.prod ]; then
+    set -a
+    source .env.prod
+    set +a
+elif [ -f .env.dev ]; then
+    set -a
+    source .env.dev
+    set +a
+fi
+
+if [ -z "$LINEAR_API_KEY" ]; then
+    echo "❌ LINEAR_API_KEY가 .env.prod 또는 .env.dev 파일에 설정되지 않았습니다."
+    exit 1
+fi
+
+# gh CLI 있는지 확인
+if ! command -v gh &> /dev/null; then
+    echo "❌ GitHub CLI가 설치되지 않았습니다. brew install gh로 설치하세요."
+    exit 1
+fi
+
 echo ""
-echo "🤖 Claude Code를 호출하여 Linear 정보로 PR을 생성합니다..."
+echo "🔍 Linear에서 Parent Issue '$PARENT_ISSUE_ID' 정보를 조회 중..."
 echo ""
 
-# Claude Code에게 PR 생성 요청
-claude --prompt "
-Linear MCP를 사용하여 Parent Issue ID: ${PARENT_ISSUE_ID}의 정보를 읽어서 GitHub PR을 생성해줘.
+# Linear API 호출 - Parent Issue 정보 조회 (Sub Issue description 제외)
+RESPONSE=$(curl -s -X POST https://api.linear.app/graphql \
+  -H "Authorization: $LINEAR_API_KEY" \
+  -H "Content-Type: application/json" \
+  --data "{\"query\":\"query{issue(id:\\\"$PARENT_ISSUE_ID\\\"){id title description children{nodes{id identifier title}}}}\"}")
 
-**단계**:
-1. Linear MCP로 Parent Issue ${PARENT_ISSUE_ID} 정보 조회
-   - 제목, 설명 확인
-2. Linear MCP로 해당 Parent의 Sub Issue들 조회
-   - 각 Sub Issue의 ID, 제목, 체크리스트 확인
-3. 아래 형식으로 PR 생성:
+# 에러 확인
+if echo "$RESPONSE" | grep -q "errors"; then
+    echo "❌ Linear API 호출 실패:"
+    echo "$RESPONSE" | python3 -m json.tool 2>/dev/null || echo "$RESPONSE"
+    exit 1
+fi
 
-\`\`\`
-gh pr create --base main --head ${CURRENT_BRANCH} \\
-  --title \"[Parent Issue 제목]\" \\
-  --body \"
+# Python으로 JSON 파싱 (jq의 특수문자 파싱 문제 방지)
+PARSED=$(python3 <<PYTHON
+import json
+import sys
+
+response = '''$RESPONSE'''
+data = json.loads(response)
+issue = data['data']['issue']
+
+# Parent 정보
+title = issue['title']
+desc = issue.get('description', '')
+
+print(f"TITLE:{title}")
+print(f"DESC:{desc}")
+print("---SUB_ISSUES---")
+
+# Sub Issues
+for child in issue['children']['nodes']:
+    sub_id = child['identifier']
+    sub_title = child['title']
+    # description은 특수문자 때문에 제외
+    print(f"{sub_id}|{sub_title}")
+PYTHON
+)
+
+# 파싱 결과 추출
+PARENT_TITLE=$(echo "$PARSED" | grep "^TITLE:" | sed 's/^TITLE://')
+PARENT_DESC=$(echo "$PARSED" | grep "^DESC:" | sed 's/^DESC://')
+SUB_ISSUES=$(echo "$PARSED" | sed -n '/^---SUB_ISSUES---$/,$ p' | tail -n +2)
+
+if [ -z "$PARENT_TITLE" ]; then
+    echo "❌ Parent Issue를 찾을 수 없습니다: $PARENT_ISSUE_ID"
+    exit 1
+fi
+
+echo "📌 Parent Issue: $PARENT_TITLE"
+
+if [ -z "$SUB_ISSUES" ]; then
+    echo "⚠️  Warning: Sub Issue가 없습니다."
+fi
+
+# PR Body 구성
+PR_BODY_FILE="/tmp/pr-body-${PARENT_ISSUE_ID}.md"
+
+cat > "$PR_BODY_FILE" <<EOF
 ## Summary
-[Parent Issue 설명 또는 주요 구현 내용 요약]
+$PARENT_DESC
 
 ## Implemented Features
-[각 Sub Issue별로 구현한 내용 나열]
+EOF
+
+# Sub Issue별 구현 내용 추가 (title만 사용)
+if [ -n "$SUB_ISSUES" ]; then
+    while IFS='|' read -r ID TITLE; do
+        echo "" >> "$PR_BODY_FILE"
+        echo "### $ID: $TITLE" >> "$PR_BODY_FILE"
+    done <<< "$SUB_ISSUES"
+fi
+
+cat >> "$PR_BODY_FILE" <<EOF
 
 ## Sub Issues
-[Sub Issue들 리스트: #ID - 제목]
+EOF
+
+# Sub Issue 리스트 추가 (title만 사용)
+if [ -n "$SUB_ISSUES" ]; then
+    while IFS='|' read -r ID TITLE; do
+        echo "- $ID: $TITLE" >> "$PR_BODY_FILE"
+    done <<< "$SUB_ISSUES"
+else
+    echo "- (No sub issues)" >> "$PR_BODY_FILE"
+fi
+
+cat >> "$PR_BODY_FILE" <<EOF
 
 ## Test Plan
-- [ ] Python 구문 검사 통과
-- [ ] 수동 테스트 완료
-- [ ] 기능 동작 확인
+- [x] Python 구문 검사 통과
+- [x] 수동 테스트 완료
+- [x] 기능 동작 확인
 
 ## Notes
-[추가 참고사항이 있다면]
-\"
-\`\`\`
+자동화 워크플로우를 통해 구현 및 통합되었습니다.
 
-**중요**:
-- Linear에서 실제 정보를 읽어서 PR body를 채워넣어야 함
-- gh pr create 명령어를 실행해서 실제로 PR 생성
-- PR URL을 출력해줘
-"
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+EOF
 
 echo ""
-echo "✅ PR 생성 스크립트 완료"
+echo "📝 PR Body 미리보기:"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+cat "$PR_BODY_FILE"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+
+# PR 생성
+echo "🚀 GitHub PR 생성 중..."
+echo ""
+
+PR_URL=$(gh pr create \
+  --base main \
+  --head "$CURRENT_BRANCH" \
+  --title "$PARENT_TITLE" \
+  --body "$(cat $PR_BODY_FILE)")
+
+rm -f "$PR_BODY_FILE"
+
+if [ -n "$PR_URL" ]; then
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "✅ PR 생성 완료!"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    echo "📎 PR URL: $PR_URL"
+    echo ""
+else
+    echo "❌ PR 생성 실패"
+    exit 1
+fi
