@@ -47,6 +47,7 @@ def send_verification_email(to_email, code):
 """)
 
     with smtplib.SMTP_SSL("smtp.naver.com", 465) as server:
+        server.set_debuglevel(1)  # SMTP 디버그 로그 활성화
         server.login(
             os.getenv("NAVER_ADDRESS"),
             os.getenv("NAVER_APP_PASSWORD")
